@@ -1,50 +1,119 @@
 #!/usr/bin/env bash
-# GENZO を Cloud Run にデプロイする（ソースデプロイ）。
+# GENZO を Cloud Run にデプロイする（自己完結）。
+#
+#   - gcloud が無ければ自動で導入する（$HOME/google-cloud-sdk）
+#   - 未認証なら環境変数 GCP_SA_KEY（Claude Code クラウド環境に設定済みのサービスアカウントキー）から認証する。
+#     ローカルの gcloud 認証があればそれを使う
+#   - プロジェクトIDは PROJECT_ID 未指定なら認証アカウント（xxx@PROJECT.iam.gserviceaccount.com）から導出する
+#   → クラウドセッションでもローカルでも `bash deploy.sh` の1コマンドでよい
+#
 # 使い方:
-#   PROJECT_ID=my-proj GCS_BUCKET=my-genzo-bucket ./deploy.sh
-# 任意の環境変数: REGION(既定 asia-northeast1) SERVICE(既定 genzo) VERTEX_LOCATION(既定 global)
-#                  VERTEX_MODEL VERTEX_IMAGE_MODEL APP_BASIC_AUTH("user:pass") ALLOW_UNAUTH(1 で公開)
+#   bash deploy.sh
+#   PROJECT_ID=xxx GCS_BUCKET=yyy REGION=asia-northeast1 SERVICE=genzo bash deploy.sh
+# 任意: VERTEX_LOCATION(既定 global) VERTEX_MODEL VERTEX_IMAGE_MODEL VERTEX_IMAGE_LOCATION
+#       APP_BASIC_AUTH("user:pass"、既定 genzo:genzo) ALLOW_UNAUTH(既定 1 = Cloud Run は公開・Basic認証で保護)
+#       RUNTIME_SA(実行サービスアカウント。未指定なら作成を試み、権限がなければ既定のコンピュート SA を使う)
 set -euo pipefail
+cd "$(dirname "$0")"
 
-: "${PROJECT_ID:?PROJECT_ID を指定してください}"
-: "${GCS_BUCKET:?GCS_BUCKET（プロジェクトJSONと画像の保存先バケット）を指定してください}"
+echo "== 0/4 gcloud の準備 =="
+# 失効しがちなセッショントークンより、恒久のサービスアカウントキーを優先する
+unset CLOUDSDK_AUTH_ACCESS_TOKEN || true
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
+if ! command -v gcloud >/dev/null 2>&1; then
+  if [ ! -x "$HOME/google-cloud-sdk/bin/gcloud" ]; then
+    echo "gcloud が無いので導入する..."
+    curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz \
+      | tar -xz -C "$HOME"
+  fi
+  export PATH="$HOME/google-cloud-sdk/bin:$PATH"
+fi
+
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null | grep -q .; then
+  if [ -n "${GCP_SA_KEY:-}" ]; then
+    echo "GCP_SA_KEY から認証する..."
+    # 環境の GCP_SA_KEY は外側の {} を欠く形式で格納されている。両対応にする
+    case "$GCP_SA_KEY" in
+      \{*) KEY_JSON="$GCP_SA_KEY" ;;
+      *)   KEY_JSON="{$GCP_SA_KEY}" ;;
+    esac
+    printf '%s' "$KEY_JSON" | gcloud auth activate-service-account --key-file=-
+  else
+    echo "エラー: gcloud が未認証で GCP_SA_KEY も無い。gcloud auth login を先に実行すること" >&2
+    exit 1
+  fi
+fi
+
+ACCOUNT="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' | head -1)"
+if [ -z "${PROJECT_ID:-}" ]; then
+  case "$ACCOUNT" in
+    *@*.iam.gserviceaccount.com) PROJECT_ID="${ACCOUNT#*@}"; PROJECT_ID="${PROJECT_ID%%.*}" ;;
+    *) PROJECT_ID="$(gcloud config get-value project 2>/dev/null || true)" ;;
+  esac
+fi
+: "${PROJECT_ID:?PROJECT_ID を特定できません。PROJECT_ID=... を指定してください}"
+gcloud config set project "$PROJECT_ID" -q >/dev/null
+
 REGION="${REGION:-asia-northeast1}"
 SERVICE="${SERVICE:-genzo}"
+GCS_BUCKET="${GCS_BUCKET:-${PROJECT_ID}-genzo}"
 VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
 VERTEX_MODEL="${VERTEX_MODEL:-gemini-2.5-pro}"
 VERTEX_IMAGE_MODEL="${VERTEX_IMAGE_MODEL:-gemini-2.5-flash-image}"
 VERTEX_IMAGE_LOCATION="${VERTEX_IMAGE_LOCATION:-us-central1}"
-SA_NAME="${SA_NAME:-genzo-run}"
-SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+APP_BASIC_AUTH="${APP_BASIC_AUTH:-genzo:genzo}"
+ALLOW_UNAUTH="${ALLOW_UNAUTH:-1}"
+echo "   account=${ACCOUNT} project=${PROJECT_ID} region=${REGION} service=${SERVICE} bucket=gs://${GCS_BUCKET}"
 
-gcloud config set project "$PROJECT_ID" >/dev/null
+echo "== 1/4 API・バケット・実行サービスアカウント（権限が無い項目は警告して続行） =="
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com >/dev/null 2>&1 \
+  || echo "   警告: API の有効化に失敗（既に有効か、serviceusage の権限なし）。続行する"
 
-echo "== API 有効化"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com >/dev/null
-
-echo "== バケット（存在しなければ作成）"
 if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" >/dev/null 2>&1; then
-  gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION" --uniform-bucket-level-access
+  gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION" --uniform-bucket-level-access \
+    || { echo "エラー: バケット gs://${GCS_BUCKET} を作成できません（別名を GCS_BUCKET= で指定するか、権限を確認）" >&2; exit 1; }
 fi
 
-echo "== サービスアカウント"
-if ! gcloud iam service-accounts describe "$SA" >/dev/null 2>&1; then
-  gcloud iam service-accounts create "$SA_NAME" --display-name="GENZO Cloud Run"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)' 2>/dev/null || true)"
+SA_FLAG=()
+if [ -n "${RUNTIME_SA:-}" ]; then
+  SA_FLAG=(--service-account "$RUNTIME_SA")
+else
+  SA_NAME="genzo-run"
+  SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+  if gcloud iam service-accounts describe "$SA" >/dev/null 2>&1 \
+     || gcloud iam service-accounts create "$SA_NAME" --display-name="GENZO Cloud Run" >/dev/null 2>&1; then
+    if gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role="roles/aiplatform.user" --condition=None >/dev/null 2>&1 \
+       && gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" --member="serviceAccount:${SA}" --role="roles/storage.objectAdmin" >/dev/null 2>&1; then
+      SA_FLAG=(--service-account "$SA")
+      echo "   実行SA: ${SA}（Vertex AI User + バケットの Object Admin）"
+    else
+      echo "   警告: ${SA} への権限付与ができないため、既定のコンピュート SA で実行する"
+    fi
+  else
+    echo "   警告: 実行用サービスアカウントを作成できないため、既定のコンピュート SA で実行する"
+  fi
+  if [ ${#SA_FLAG[@]} -eq 0 ] && [ -n "$PROJECT_NUMBER" ]; then
+    DEFAULT_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+    gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" --member="serviceAccount:${DEFAULT_SA}" --role="roles/storage.objectAdmin" >/dev/null 2>&1 \
+      || echo "   警告: 既定SA(${DEFAULT_SA})へバケット権限を付与できない（Editor 権限があれば不要）"
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${DEFAULT_SA}" --role="roles/aiplatform.user" --condition=None >/dev/null 2>&1 \
+      || echo "   警告: 既定SA(${DEFAULT_SA})へ Vertex AI User を付与できない（Editor 権限があれば不要）"
+  fi
 fi
-gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role="roles/aiplatform.user" --condition=None >/dev/null
-gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" --member="serviceAccount:${SA}" --role="roles/storage.objectAdmin" >/dev/null
 
+echo "== 2/4 Cloud Run デプロイ (project=${PROJECT_ID}, service=${SERVICE}, region=${REGION}) =="
 ENV_VARS="STORAGE=gcs,GCS_BUCKET=${GCS_BUCKET},GCS_PREFIX=genzo/,LLM_PROVIDER=vertex,VERTEX_PROJECT=${PROJECT_ID},VERTEX_LOCATION=${VERTEX_LOCATION},VERTEX_MODEL=${VERTEX_MODEL},VERTEX_IMAGE_MODEL=${VERTEX_IMAGE_MODEL},VERTEX_IMAGE_LOCATION=${VERTEX_IMAGE_LOCATION}"
-if [ -n "${APP_BASIC_AUTH:-}" ]; then ENV_VARS="${ENV_VARS},APP_BASIC_AUTH=${APP_BASIC_AUTH}"; fi
-
+if [ -n "$APP_BASIC_AUTH" ]; then ENV_VARS="${ENV_VARS},APP_BASIC_AUTH=${APP_BASIC_AUTH}"; fi
 AUTH_FLAG="--no-allow-unauthenticated"
-if [ "${ALLOW_UNAUTH:-0}" = "1" ]; then AUTH_FLAG="--allow-unauthenticated"; fi
+if [ "$ALLOW_UNAUTH" = "1" ]; then AUTH_FLAG="--allow-unauthenticated"; fi
 
-echo "== デプロイ（生成は数分かかるため timeout=3600、状態整合のため max-instances=1）"
+# 生成は数分かかるため timeout=3600、単一 JSON を読み書きするため max-instances=1
 gcloud run deploy "$SERVICE" \
   --source . \
   --region "$REGION" \
-  --service-account "$SA" \
+  "${SA_FLAG[@]}" \
   --timeout 3600 \
   --cpu 2 --memory 2Gi \
   --concurrency 40 \
@@ -52,5 +121,19 @@ gcloud run deploy "$SERVICE" \
   --set-env-vars "$ENV_VARS" \
   $AUTH_FLAG
 
-echo "== 完了"
-gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)'
+echo "== 3/4 配信検証 =="
+LIVE_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
+AUTH_OPT=()
+if [ -n "$APP_BASIC_AUTH" ]; then AUTH_OPT=(-u "$APP_BASIC_AUTH"); fi
+HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/healthz" || true)"
+echo "   /healthz: ${HEALTH:-(応答なし)}"
+case "$HEALTH" in
+  *'"ok":true'*) ;;
+  *) echo "配信検証: 不合格 — /healthz が ok を返さない" >&2; exit 1 ;;
+esac
+PROJ_OK="$(curl -sf "${AUTH_OPT[@]}" -X POST -H 'Content-Type: application/json' -d '{"args":[]}' "${LIVE_URL}/api/getProject" | head -c 200 || true)"
+case "$PROJ_OK" in
+  *'"ok":true'*) echo "   /api/getProject: ok（プロジェクトJSONを gs://${GCS_BUCKET} に初期化済み）" ;;
+  *) echo "配信検証: 不合格 — /api/getProject が失敗: ${PROJ_OK}" >&2; exit 1 ;;
+esac
+echo "== 4/4 完了。${LIVE_URL} を開く（Basic 認証 ${APP_BASIC_AUTH%%:*}/****） =="
