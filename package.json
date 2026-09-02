@@ -1,0 +1,21 @@
+{
+  "name": "genzo",
+  "version": "3.79.0",
+  "private": true,
+  "description": "GENZO — コンセプトのビジュアル意思決定ワークスペース (Cloud Run 版)",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "STORAGE=local node --watch server/index.js",
+    "check": "node --check server/index.js && node --check server/genzo.js && node --check server/llm.js && node --check server/storage.js && node --check server/config.js && node --check server/lock.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.14.0",
+    "express": "^4.21.2",
+    "google-auth-library": "^9.15.0",
+    "sharp": "^0.33.5"
+  }
+}

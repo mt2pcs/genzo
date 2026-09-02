@@ -1,0 +1,33 @@
+# Cloud Build から Cloud Run へデプロイする場合の定義（deploy.sh の代替）。
+# 例: gcloud builds submit --config cloudbuild.yaml --substitutions=_GCS_BUCKET=my-genzo-bucket
+substitutions:
+  _REGION: asia-northeast1
+  _SERVICE: genzo
+  _GCS_BUCKET: ''
+  _VERTEX_LOCATION: global
+  _VERTEX_MODEL: gemini-2.5-pro
+  _VERTEX_IMAGE_MODEL: gemini-2.5-flash-image
+  _SERVICE_ACCOUNT: ''
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/genzo/genzo:$SHORT_SHA', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/genzo/genzo:$SHORT_SHA']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/genzo/genzo:$SHORT_SHA
+      - --region=${_REGION}
+      - --service-account=${_SERVICE_ACCOUNT}
+      - --timeout=3600
+      - --cpu=2
+      - --memory=2Gi
+      - --concurrency=40
+      - --max-instances=1
+      - --no-allow-unauthenticated
+      - --set-env-vars=STORAGE=gcs,GCS_BUCKET=${_GCS_BUCKET},GCS_PREFIX=genzo/,LLM_PROVIDER=vertex,VERTEX_PROJECT=$PROJECT_ID,VERTEX_LOCATION=${_VERTEX_LOCATION},VERTEX_MODEL=${_VERTEX_MODEL},VERTEX_IMAGE_MODEL=${_VERTEX_IMAGE_MODEL}
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/genzo/genzo:$SHORT_SHA

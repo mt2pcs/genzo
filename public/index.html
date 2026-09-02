@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GENZO</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F7F9; --surface:#FFFFFF; --panel:#FBFBFD;
+  --ink:#17171A; --ink2:#4B4B52; --mute:#82828C; --faint:#B8B8C2;
+  --line:#E7E7EC; --lineS:#EFEFF3;
+  --acc:#5E5CE6; --accSoft:#EEEEFC; --accInk:#3F3DBB;
+  --danger:#DE4B4B; --ok:#2E9E63; --warn:#C98A1F;
+  --disp:'Instrument Sans','Noto Sans JP',sans-serif;
+  --body:'Noto Sans JP','Instrument Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sh1:0 1px 2px rgba(20,20,30,.05),0 4px 16px rgba(20,20,30,.05);
+  --sh2:0 4px 12px rgba(20,20,30,.08),0 16px 48px rgba(20,20,30,.12);
+  --spring:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);font-size:13.5px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow:hidden}
+::selection{background:var(--acc);color:#fff}
+button{font-family:inherit;cursor:pointer}
+textarea,input,select{font-family:inherit;font-size:13px;color:var(--ink)}
+.mono{font-family:var(--mono)}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+@keyframes shim{from{background-position:120% 0}to{background-position:-120% 0}}
+#netbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:99999;display:none;background:linear-gradient(90deg,var(--acc) 30%,#fff 50%,var(--acc) 70%);background-size:200% 100%;animation:shim 1.1s linear infinite}
+#netlabel{position:fixed;top:6px;right:10px;z-index:99999;display:none;font-size:10px;color:var(--ink2);background:var(--surface);border:1px solid var(--lineS);border-radius:999px;padding:2px 10px;box-shadow:var(--sh1)}
+
+/* ---------- topbar ---------- */
+.topbar{position:fixed;inset:0 0 auto 0;height:54px;z-index:40;display:flex;align-items:center;gap:12px;padding:0 20px;
+  background:rgba(251,251,253,.85);backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid var(--line)}
+.logo{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:-.03em;cursor:pointer}
+.logo i{font-style:normal;color:var(--acc)}
+.logo small{font-family:var(--body);font-weight:500;font-size:11px;color:var(--mute);margin-left:8px;letter-spacing:.06em}
+.projchip{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:3px 10px;background:var(--surface)}
+.cswitch{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:3px}
+.cswitch button{border:0;background:transparent;border-radius:99px;padding:4px 14px;font-size:12px;color:var(--mute);font-weight:500;transition:all .15s}
+.cswitch button.on{background:var(--ink);color:#fff;font-weight:700}
+.tb-spacer{flex:1}
+.pill-btn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:500;color:var(--ink2);transition:all .18s var(--spring)}
+.pill-btn:hover{border-color:var(--faint);color:var(--ink);transform:translateY(-1px)}
+.qpill{display:none;align-items:center;gap:8px;padding:6px 13px;border-radius:99px;background:var(--accSoft);color:var(--accInk);font-size:12px;font-weight:500}
+.qpill.on{display:flex}
+.qpill .dot{width:7px;height:7px;border-radius:99px;background:var(--acc);animation:pulse 1.2s ease infinite}
+
+.viewwrap{height:100vh;padding-top:54px;overflow-y:auto}
+.viewwrap::-webkit-scrollbar,.sopanel::-webkit-scrollbar,.wscol::-webkit-scrollbar{width:0;height:0}
+.container{max-width:none;margin:0;padding:26px clamp(24px,4vw,72px) 160px}
+
+/* ---------- 認識5段（発見→含意→範囲） ---------- */
+.percep{margin-bottom:26px}
+.percep details{border:1px solid var(--line);border-radius:14px;background:var(--surface);margin-bottom:8px;overflow:hidden}
+.percep summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:9px}
+.percep summary::-webkit-details-marker{display:none}
+.percep summary .step{font-family:var(--mono);font-size:10px;color:var(--acc);letter-spacing:.15em}
+.percep summary .cnt{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400}
+.percep .body{padding:2px 16px 14px;font-size:12px;color:var(--ink2)}
+.fitem{padding:10px 0;border-top:1px solid var(--lineS)}
+.fitem:first-child{border-top:0}
+.fitem .fid{font-family:var(--mono);font-size:10px;color:var(--acc);margin-right:6px}
+.fitem .ftx{line-height:1.7}
+.fitem .fsrc{margin-top:5px;display:flex;flex-wrap:wrap;gap:4px}
+.fitem .fsrc a{font-family:var(--mono);font-size:9.5px;color:var(--mute);text-decoration:none;border:1px solid var(--lineS);border-radius:6px;padding:1px 7px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitem .fsrc a:hover{color:var(--accInk);border-color:var(--acc)}
+.iitem{padding:8px 0;border-top:1px solid var(--lineS);display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:baseline}
+.iitem:first-child{border-top:0}
+.iitem .from{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.iitem2{padding:10px 0;border-top:1px solid var(--lineS)}
+.iitem2:first-of-type{border-top:0}
+.iitem2 .ic{font-size:12.5px;color:var(--ink);line-height:1.7}
+.iitem2 .ifr{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;align-items:baseline}
+.iitem2 .ifr .lb{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.fchip{font-size:10.5px;border:1px solid var(--lineS);background:var(--panel);border-radius:99px;padding:2px 10px;color:var(--ink2);cursor:help}
+
+.cbtable tr.gatedrow td{opacity:.55}
+.risk .rw{font-weight:700;color:#9C3232;cursor:help;border-bottom:1px dotted #9C3232}
+.sptable{width:100%;border-collapse:collapse;font-size:12px}
+.sptable th{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.sptable td{padding:9px 10px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.6;color:var(--ink2)}
+.sptable td:first-child{font-weight:700;color:var(--ink);white-space:nowrap}
+.sptable tr:last-child td{border-bottom:0}
+.pintro{font-size:12.5px;color:var(--ink2);line-height:1.75;padding:4px 0 10px}
+.qblock{margin:12px 0 4px}
+.qblock .qh{display:flex;gap:9px;align-items:baseline;font-weight:700;font-size:13px;padding:8px 0 2px;border-top:1px solid var(--lineS)}
+.qblock:first-of-type .qh{border-top:0}
+.qblock .qid{font-family:var(--mono);font-size:10px;color:var(--acc)}
+.fitem .fti{font-weight:700;font-size:12.5px;color:var(--ink)}
+
+/* 設計マップ */
+.mapwrap{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:16px;margin-top:14px}
+.mapnote{font-size:12px;color:var(--ink2);line-height:1.7;margin-bottom:12px}
+.dmap{width:100%;border-collapse:collapse;font-size:11.5px}
+.dmap th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.dmap td{padding:9px 10px;border-bottom:1px solid var(--lineS);vertical-align:middle;line-height:1.5}
+.dmap tr:last-child td{border-bottom:0}
+.dmap td:first-child{font-weight:700;color:var(--ink);white-space:nowrap;cursor:pointer}
+.dmap td:first-child:hover{color:var(--accInk)}
+.dmap .floor{color:var(--faint);font-family:var(--mono);font-size:10px;text-align:center}
+.dmap .disp{background:var(--accSoft);border-radius:8px;color:var(--accInk);font-size:11px;padding:6px 9px}
+.dmap .disp b{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;margin-bottom:2px}
+.dmap .ctrl{background:#F2F2F5;border-radius:8px;color:var(--mute);font-size:11px;padding:6px 9px;text-align:center}
+.dmap .gaped{background:#FBE7E7;color:#9C3232}
+
+/* ライトボックス */
+.lightbox{position:fixed;inset:0;z-index:96;background:rgba(15,15,20,.9);display:none;place-items:center;cursor:zoom-out}
+.lightbox.on{display:grid}
+.lightbox img{max-width:94vw;max-height:90vh;border-radius:12px;box-shadow:var(--sh2)}
+.lightbox .lb-cap{position:fixed;bottom:18px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.8}
+
+/* 俯瞰キャンバス */
+/* 方向=行 × 版=横並び */
+.dirrows{display:flex;flex-direction:column;gap:14px}
+.drow{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:grid;grid-template-columns:236px 1fr;gap:16px}
+.drow .dh2 .oh-nm{font-weight:700;font-size:14px;line-height:1.45;cursor:pointer}
+.drow .dh2 .oh-nm:hover{color:var(--accInk)}
+.drow .dh2 .oh-aim{font-size:11.5px;color:var(--ink2);line-height:1.6;margin-top:6px}
+.drow .dh2 .oh-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px}
+.drow .dh2 .openbtn{margin-top:10px;width:100%;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px;font-size:11.5px;color:var(--ink2)}
+.drow .dh2 .openbtn:hover{border-color:var(--acc);color:var(--accInk)}
+.vstrip{display:grid;grid-auto-flow:column;grid-auto-columns:424px;gap:11px;overflow-x:auto;padding:2px 2px 6px;justify-content:start}
+.vcard{border:1px solid var(--lineS);border-radius:14px;padding:10px;background:var(--panel);display:flex;flex-direction:column;gap:7px}
+.vcard.repv{border-color:var(--acc);box-shadow:0 0 0 2px var(--accSoft)}
+.vcard .vh2{display:flex;align-items:baseline;gap:6px}
+.vcard .vh2 .vl{font-weight:700;font-size:12px;line-height:1.4}
+.vcard .vh2 .repm{font-family:var(--mono);font-size:8.5px;color:var(--ok);white-space:nowrap}
+.vcard .vmeta{height:64px;overflow:hidden;display:flex;flex-direction:column;gap:3px}
+.vcard .vh2 .vl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vcard .vsrc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vcard .vsrc{font-size:10.5px;color:var(--mute);line-height:1.5}
+.vcard .celllb{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:2px}
+.vcard{--th:168px}
+.vcard .subrow{display:flex;gap:7px}
+.vcard .subrow .cell.r34{height:var(--th);width:calc(var(--th)*3/4);flex:0 0 auto}
+.vcard .subrow .cell.r169{height:var(--th);width:calc(var(--th)*16/10);flex:0 0 auto;aspect-ratio:auto}
+.vcard .vopen{border:0;background:none;font-size:10.5px;color:var(--mute);text-align:left;padding:0;text-decoration:underline dotted;text-underline-offset:3px}
+.vcard .vopen:hover{color:var(--accInk)}
+.vdetail{overflow-wrap:anywhere;word-break:break-word;grid-column:1/-1;border-top:1px solid var(--lineS);margin-top:4px;padding-top:14px}
+.vdetail .vdh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.vdetail .vdh .vl{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:-.01em}
+.vdetail .vdh .sp{flex:1}
+.vdetail .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:1100px){.vdetail .cols{grid-template-columns:1fr}}
+.phch.click{cursor:pointer;border:1px dashed transparent}
+.phch.click:hover{border-color:currentColor}
+.addcard{border:1.5px dashed var(--faint);border-radius:14px;background:transparent;min-width:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--mute);font-size:24px;cursor:pointer;transition:all .15s}
+.addcard.isopen{opacity:.4;border-style:solid;pointer-events:auto;background:var(--panel)}
+.addcard span{font-size:11px}
+.addcard:hover{border-color:var(--acc);color:var(--accInk);background:var(--accSoft)}
+.addrow{width:100%;border:1.5px dashed var(--faint);border-radius:18px;background:transparent;padding:16px;color:var(--mute);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;margin-top:14px}
+.addrow:hover{border-color:var(--acc);color:var(--accInk);background:var(--accSoft)}
+.cpanel{grid-column:1/-1;margin-top:10px;padding:14px;background:var(--accSoft);border:1.5px solid var(--acc);border-radius:14px}
+.cpanel.standalone{border:1.5px solid var(--acc);border-radius:18px;background:var(--accSoft);padding:14px;margin-top:10px}
+.cph{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.cph .t{font-weight:700;font-size:13px}
+.cpanel .row{display:flex;gap:8px;align-items:flex-end}
+.cpanel textarea{flex:1;border:1px solid var(--lineS);border-radius:12px;padding:9px 12px;font-size:12.5px;resize:vertical;min-height:46px;outline:none;background:var(--panel)}
+.cpanel textarea:focus{border-color:var(--acc)}
+.gapbox{border:1px dashed var(--danger);border-radius:12px;padding:11px;margin-top:10px;background:var(--surface)}
+.gapbox .gt2{font-weight:700;font-size:12.5px;color:#9C3232}
+.gapbox pre{font-family:var(--body);white-space:pre-wrap;font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.6;max-height:170px;overflow-y:auto}
+.warnchip{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;border-radius:6px;padding:1px 7px;background:#FBF1DE;color:var(--warn);cursor:help}
+/* コード目録 */
+.sopanel.wide{width:min(1080px,96vw)}
+.cbsec{margin-top:22px}
+.cbsec .lb2,.lb2{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink2);font-weight:700;margin-bottom:8px}
+.cbtable{width:100%;border-collapse:collapse;font-size:11.5px}
+.cbtable th{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:500}
+.cbtable{width:100%}
+.cbtable td{overflow-wrap:anywhere;word-break:break-word;padding:7px 8px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.55;color:var(--ink2)}
+.cbtable td:first-child{font-weight:700;color:var(--ink);white-space:nowrap}
+.vdetail .cbtable td:first-child{white-space:normal}
+.cbmx{width:100%;border-collapse:collapse;font-size:10.5px}
+.cbmx th{font-family:var(--mono);font-size:8.5px;color:var(--faint);padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;font-weight:500}
+.cbmx td{padding:5px 6px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.45}
+.cbmx td:first-child{font-weight:700;white-space:nowrap;color:var(--ink)}
+.cbmx td.enc{color:var(--ink2)}
+.cbmx td.ver{color:var(--ink);background:var(--accSoft)}
+.cbmx td.adj{background:#FBF1DE}
+.cbmx td.adj select{width:100%;border:1px solid var(--warn);border-radius:6px;font-size:10px;padding:2px;background:var(--surface)}
+.cbmx td.na{color:var(--faint)}
+.codechip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:11px;margin:0 6px 6px 0;background:var(--surface)}
+.codechip b{font-size:11.5px}
+.codechip .sh{font-family:var(--mono);font-size:9.5px;color:var(--mute)}
+.codechip.is{border-color:var(--acc);background:var(--accSoft)}
+.encbtn{border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:10.5px;color:var(--ink2);background:var(--surface);cursor:pointer;white-space:nowrap}
+.encbtn:hover{border-color:var(--acc);color:var(--accInk)}
+
+/* ディレクションバー（概要下部固定） */
+.dirbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:min(900px,94vw);z-index:44;
+  background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh2);padding:12px 14px}
+.dirbar .tgt{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;align-items:center}
+.dirbar .tgt .lb{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:3px}
+.tchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 12px;font-size:11.5px;color:var(--ink2);transition:all .13s}
+.tchip.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+.tchip.new{border-style:dashed}
+.dirbar .row{display:flex;gap:8px;align-items:flex-end}
+.dirbar textarea{flex:1;border:1px solid var(--lineS);border-radius:12px;padding:9px 12px;font-size:12.5px;resize:none;min-height:42px;max-height:120px;outline:none;background:var(--panel)}
+.dirbar textarea:focus{border-color:var(--acc)}
+.attbtn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 13px;font-size:12px;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.attbtn:hover{border-color:var(--acc);color:var(--accInk)}
+.attbtn.has{border-color:var(--acc);background:var(--accSoft);color:var(--accInk)}
+.sendbtn{border:0;background:var(--ink);color:#fff;border-radius:12px;padding:10px 18px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.sendbtn:disabled{opacity:.5}
+
+/* 言語化カード（借用フロー） */
+.decomp{border:1px solid var(--acc);border-radius:13px;padding:11px 13px;background:var(--surface);margin-top:9px}
+.decomp .dh{font-weight:700;font-size:12.5px}
+.decomp .dsum{font-size:11.5px;color:var(--ink2);margin-top:3px;line-height:1.55}
+.decomp table{width:100%;border-collapse:collapse;font-size:11px;margin-top:7px}
+.decomp td{padding:4px 7px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.5}
+.decomp td:first-child{font-family:var(--mono);font-size:9.5px;color:var(--acc);white-space:nowrap;width:36px}
+.decomp .caution{border-left:3px solid var(--warn);background:var(--panel);border-radius:0 8px 8px 0;padding:7px 10px;font-size:11px;color:var(--ink2);margin-top:8px}
+.decomp .exp{font-size:11px;color:var(--mute);margin-top:8px;line-height:1.6}
+.dirbar .dpform{border:0;padding:0;background:transparent}
+.dirbar .bh{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.dirbar .bh .t{font-weight:700;font-size:12px}
+.dirbar .bh .hide{margin-left:auto;border:0;background:none;font-size:11px;color:var(--mute);padding:2px 6px}
+.dirbar .bh .hide:hover{color:var(--ink)}
+.optrow{display:flex;align-items:center;gap:8px;margin-top:7px}
+.optbtn{border:0;background:none;font-size:11px;color:var(--mute);padding:0;text-decoration:underline dotted;text-underline-offset:3px}
+.optbtn:hover{color:var(--accInk)}
+.barpill{position:fixed;bottom:16px;right:18px;z-index:44;border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh2);border-radius:99px;padding:9px 18px;font-size:12.5px;font-weight:700;color:var(--ink)}
+.barpill:hover{border-color:var(--acc);color:var(--accInk)}
+
+/* ---------- 方向カード ---------- */
+.secttl{display:flex;align-items:baseline;gap:12px;margin:26px 0 12px}
+.secttl h2{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:-.02em}
+.secttl .sub{font-size:12.5px;color:var(--ink2)}
+.dirgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.dcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;transition:all .18s var(--spring);cursor:pointer;position:relative}
+.dcard:hover{transform:translateY(-2px);box-shadow:var(--sh1);border-color:var(--faint)}
+.dcard .nm{font-weight:700;font-size:14.5px;letter-spacing:-.01em;padding-right:70px}
+.dcard .aim{font-size:12px;color:var(--ink2);margin-top:5px;line-height:1.6}
+.dcard .glance{font-size:11px;color:var(--accInk);background:var(--accSoft);border-radius:8px;padding:5px 9px;margin-top:8px;line-height:1.5}
+.dcard .meta{display:flex;align-items:center;gap:8px;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--mute)}
+.dcard .minis{display:flex;gap:5px;margin-top:10px}
+.dcard .mini{flex:1;aspect-ratio:4/3;border-radius:8px;background:var(--panel);border:1px solid var(--lineS);overflow:hidden;display:grid;place-items:center;font-family:var(--mono);font-size:8.5px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
+.dcard .mini img{width:100%;height:100%;object-fit:cover}
+.phch{position:absolute;top:14px;right:14px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;border-radius:6px;padding:2px 8px;text-transform:uppercase}
+.phch.direction{background:var(--accSoft);color:var(--accInk)}
+.phch.comp{background:#FBF1DE;color:var(--warn)}
+.phch.research{background:#E7F5EC;color:var(--ok)}
+.gatebar{margin-top:9px;border:1px solid #F3D9A4;background:#FDF6E7;color:var(--warn);border-radius:9px;padding:7px 10px;font-size:11px;line-height:1.55}
+.newdir{border:1px dashed var(--faint);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:8px;background:transparent}
+.newdir textarea{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:9px 11px;font-size:12.5px;resize:vertical;min-height:56px;outline:none}
+.newdir textarea:focus{border-color:var(--acc)}
+.newdir button{align-self:flex-end;border:0;background:var(--ink);color:#fff;border-radius:11px;padding:8px 16px;font-size:12px;font-weight:700}
+.newdir button:disabled{opacity:.5}
+.newdir .lb{font-weight:700;font-size:13px}
+.newdir .hint{font-size:11px;color:var(--mute)}
+
+/* 比較表 */
+.cmpwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);margin-top:14px}
+.cmp{width:100%;border-collapse:collapse;font-size:11.5px;min-width:860px}
+.cmp th{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.cmp td{padding:9px 12px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.55;color:var(--ink2)}
+.cmp tr:last-child td{border-bottom:0}
+.cmp td:first-child{font-weight:700;color:var(--ink);white-space:nowrap}
+
+/* ---------- ワークスペース ---------- */
+.ws{display:grid;grid-template-columns:230px 1fr 380px;gap:0;height:calc(100vh - 54px)}
+.wscol{overflow-y:auto;padding:20px 18px 140px}
+.wscol.tree{border-right:1px solid var(--line);background:var(--panel)}
+.wscol.dpanel{border-left:1px solid var(--line);background:var(--panel)}
+.wshead{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.backbtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;width:32px;height:32px;font-size:14px;color:var(--ink2)}
+.backbtn:hover{border-color:var(--faint)}
+.wshead .ttl{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:-.02em}
+.phtabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--lineS);border-radius:10px;padding:3px;margin-left:auto}
+.phtabs button{border:0;background:transparent;border-radius:8px;padding:5px 12px;font-size:11px;color:var(--mute);transition:all .15s}
+.phtabs button.on{background:var(--ink);color:#fff;font-weight:700}
+.tree .tnode{display:block;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:10px;padding:8px 10px;font-size:12px;color:var(--ink2);margin-bottom:3px;transition:all .13s;line-height:1.45}
+.tree .tnode:hover{background:var(--surface);border-color:var(--lineS)}
+.tree .tnode.on{background:var(--surface);border-color:var(--acc);box-shadow:0 0 0 2px var(--accSoft);color:var(--ink);font-weight:700}
+.tree .tnode .tsub{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);font-weight:400;margin-top:2px}
+.tree .rep{font-family:var(--mono);font-size:8.5px;color:var(--ok);margin-left:5px}
+.tree .eyebrow{display:block;margin-bottom:8px}
+
+/* 版詳細 */
+.vhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.vhead .vlabel{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em}
+.vhead .vops{margin-left:auto;display:flex;gap:6px}
+.tbtn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:5px 12px;font-size:11.5px;color:var(--ink2);transition:all .15s}
+.tbtn:hover{border-color:var(--faint);color:var(--ink)}
+.tbtn.danger:hover{border-color:var(--danger);color:var(--danger)}
+.vaim{font-size:13px;color:var(--ink2);line-height:1.7}
+.sec-lb{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:18px 0 7px}
+.decision{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:8px;background:var(--surface)}
+.decision .d{font-weight:700;font-size:12.5px;line-height:1.65}
+.decision .s{font-size:12px;color:var(--ink2);margin-top:5px;line-height:1.65}
+.decision .s b{color:var(--accInk);font-weight:700}
+.decision .e{font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.7;background:var(--panel);border-left:3px solid var(--acc);border-radius:0 8px 8px 0;padding:8px 11px}
+.glancebox{font-size:12px;color:var(--accInk);background:var(--accSoft);border-radius:10px;padding:9px 12px;line-height:1.6}
+.gates{border:1px solid var(--lineS);border-radius:10px;overflow:hidden;background:var(--surface)}
+.gates .gr{display:grid;grid-template-columns:170px 82px 1fr;gap:8px;padding:7px 11px;border-top:1px solid var(--lineS);font-size:11.5px;align-items:baseline}
+.gates .gr:first-child{border-top:0}
+.gates .gid{color:var(--mute);font-size:11px}
+.vd{font-family:var(--mono);font-size:9px;letter-spacing:.08em;border-radius:6px;padding:1px 7px;text-transform:uppercase}
+.vd.ok{background:#E7F5EC;color:var(--ok)}
+.vd.cond{background:#FBF1DE;color:var(--warn)}
+.vd.ng{background:#FBE7E7;color:var(--danger)}
+.measure{border:1px solid var(--lineS);border-left:3px solid var(--ok);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--ink2);background:var(--surface)}
+.falsify{border:1px solid var(--lineS);border-left:3px solid var(--warn);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--ink2);margin-top:8px;background:var(--surface)}
+.palette{display:flex;gap:6px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:6px;border:1px solid var(--lineS);border-radius:99px;padding:3px 10px 3px 4px;font-family:var(--mono);font-size:10px;color:var(--ink2);background:var(--surface)}
+.sw i{width:16px;height:16px;border-radius:99px;border:1px solid rgba(0,0,0,.08)}
+.tokrow{display:grid;grid-template-columns:84px 1fr;gap:8px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--lineS)}
+.tokrow .k{color:var(--mute);font-size:11px}
+.viz3{display:grid;grid-template-columns:2fr 3fr;gap:12px}
+.vizcell.vboard{grid-column:1/-1}
+.vizcell .celllb{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:5px;display:flex;align-items:center}
+.vizcell .celllb .re{margin-left:auto;border:0;background:none;color:var(--faint);font-family:var(--mono);font-size:9px;padding:0;text-transform:uppercase;opacity:0;transition:opacity .15s}
+.vizcell:hover .re{opacity:1}
+.vizcell .celllb .re:hover{color:var(--accInk)}
+.cell{position:relative;border-radius:12px;overflow:hidden;background:var(--panel);border:1px solid var(--lineS);cursor:pointer;transition:transform .18s var(--spring)}
+.cell:hover{transform:scale(1.01)}
+.cell.r169{aspect-ratio:16/10}
+.cell.r34{aspect-ratio:3/4}
+.cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cell img.dev{animation:develop 1s var(--spring)}
+.cell .regen{position:absolute;right:6px;top:6px;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.92);color:var(--ink2);font-size:13px;cursor:pointer;opacity:0;transition:opacity .15s}
+.cell:hover .regen{opacity:1}
+
+@keyframes develop{0%{opacity:0;filter:blur(16px) grayscale(1);transform:scale(1.04)}55%{opacity:1;filter:blur(4px) grayscale(.5)}100%{filter:none;transform:scale(1)}}
+.cell .empty{position:absolute;inset:0;display:grid;place-items:center}
+.cell .empty button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 14px;font-size:11px;color:var(--ink2)}
+.cell .empty button:hover{border-color:var(--acc);color:var(--accInk)}
+.cell .shimmer{position:absolute;inset:0;background:linear-gradient(105deg,var(--panel) 40%,#fff 50%,var(--panel) 60%);background-size:280% 100%;animation:shim 1.5s linear infinite}
+.cell .devlb{position:absolute;inset:auto 0 0 0;text-align:center;padding:7px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--mute);text-transform:uppercase}
+.promptbox{font-family:var(--mono);font-size:10px;color:var(--ink2);background:var(--panel);border:1px solid var(--lineS);border-radius:10px;padding:10px;white-space:pre-wrap;line-height:1.6;max-height:150px;overflow-y:auto}
+.origin details summary{cursor:pointer;font-size:11.5px;color:var(--mute)}
+
+/* ---------- ディレクションパネル（右） ---------- */
+.dp-lb{font-weight:700;font-size:13px;margin-bottom:8px}
+.dp-hint{font-size:11px;color:var(--mute);margin-bottom:10px;line-height:1.6}
+.dpform{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px}
+.dpform textarea{width:100%;border:1px solid var(--lineS);border-radius:10px;padding:9px 11px;font-size:12.5px;min-height:70px;resize:vertical;outline:none;background:var(--panel)}
+.dpform textarea:focus{border-color:var(--acc)}
+.sugg{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.sugg button{border:1px solid var(--lineS);background:var(--panel);border-radius:99px;padding:4px 11px;font-size:11px;color:var(--ink2);transition:all .15s}
+.sugg button:hover{border-color:var(--acc);color:var(--accInk);background:var(--accSoft)}
+.dp-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:12px 0 6px}
+.refsel{width:100%;border:1px solid var(--lineS);border-radius:10px;padding:7px 10px;background:var(--panel);outline:none;font-size:12px}
+.varchips,.lockchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.vchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 11px;font-size:11px;color:var(--ink2);transition:all .13s}
+.vchip.on{background:var(--accSoft);border-color:var(--acc);color:var(--accInk)}
+.vchip.keep.on{background:#E7F5EC;border-color:var(--ok);color:var(--ok)}
+.dpsend{width:100%;margin-top:12px;border:0;background:var(--ink);color:#fff;border-radius:12px;padding:10px;font-size:13px;font-weight:700;transition:all .15s}
+.dpsend:hover{background:#000}
+.dpsend:disabled{opacity:.5}
+.dp-flow{font-size:10.5px;color:var(--faint);text-align:center;margin-top:8px;font-family:var(--mono);letter-spacing:.05em}
+
+/* 提案（パイプライン応答） */
+.prop{margin-top:14px}
+.prop .ph{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:14px 0 6px;display:flex;align-items:center;gap:7px}
+.prop .ph::after{content:'';flex:1;height:1px;background:var(--lineS)}
+.move{display:grid;grid-template-columns:44px 1fr;gap:9px;padding:7px 0;border-bottom:1px solid var(--lineS);font-size:12px;align-items:baseline}
+.move .mv{font-family:var(--mono);font-size:10px;color:var(--accInk);background:var(--accSoft);border-radius:6px;padding:1px 6px;text-align:center}
+.move .mtx b{font-weight:700}
+.move .mnote{font-size:11px;color:var(--mute);margin-top:2px}
+.match{border:1px solid var(--lineS);border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:11.5px;background:var(--surface)}
+.match .msrc{font-family:var(--mono);font-size:9.5px;color:var(--acc)}
+.match .mq{color:var(--ink2);margin-top:3px;line-height:1.65}
+.match .mr{color:var(--mute);font-size:11px;margin-top:4px}
+.verdict{border-radius:12px;padding:11px 13px;font-size:12px;line-height:1.65}
+.verdict.ok{background:#E7F5EC;color:#1E6B43}
+.verdict.warn{background:#FDF6E7;color:#8A6215}
+.verdict.gap{background:#FBE7E7;color:#9C3232}
+.warnitem{border:1px solid #F3D9A4;background:var(--surface);border-radius:10px;padding:9px 12px;margin-top:7px;font-size:11.5px}
+.warnitem .ww{font-weight:700}
+.warnitem .wa{color:var(--accInk);margin-top:4px}
+.gapbrief{border:1px dashed var(--danger);border-radius:12px;padding:11px;margin-top:8px;background:var(--surface)}
+.gapbrief .bt{font-weight:700;font-size:12px}
+.gapbrief pre{font-family:var(--body);white-space:pre-wrap;font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.65;max-height:180px;overflow-y:auto}
+.specprev{border:1px solid var(--acc);border-radius:14px;padding:13px;background:var(--surface)}
+.specprev .sl{font-weight:700;font-size:14px}
+.specprev .sa{font-size:12px;color:var(--ink2);margin-top:4px;line-height:1.6}
+.approve{width:100%;margin-top:10px;border:0;background:var(--acc);color:#fff;border-radius:12px;padding:10px;font-size:13px;font-weight:700}
+.approve:hover{background:var(--accInk)}
+.approve:disabled{opacity:.5}
+.discard{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--surface);color:var(--mute);border-radius:12px;padding:8px;font-size:12px}
+.pipeload{display:none;align-items:center;gap:10px;margin-top:14px;font-size:12.5px;color:var(--ink);background:var(--accSoft);border:1.5px solid var(--acc);border-radius:12px;padding:12px 16px;line-height:1.7}
+.cell .empty.wait{background:var(--accSoft);border:1.5px dashed var(--acc);color:var(--accInk);font-weight:700;font-size:11px}
+.cell .empty.err{background:#fdeeee;border:1.5px solid #d97b7b;color:#a33;font-size:11px;flex-direction:column;gap:4px}
+.cell .empty.err .errmsg{font-size:9.5px;color:#b66;font-weight:400;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.devlb.gen{color:var(--accInk);font-weight:800;background:var(--surface);border:1px solid var(--acc)}
+.pipeload.on{display:flex}
+.pipeload .dot{width:8px;height:8px;border-radius:99px;background:var(--acc);animation:pulse 1.2s ease infinite}
+
+/* ---------- パネル/ガイド/トースト ---------- */
+.scrim{position:fixed;inset:0;background:rgba(20,20,26,.32);opacity:0;pointer-events:none;transition:opacity .25s;z-index:48}
+.scrim.on{opacity:1;pointer-events:auto}
+.sopanel{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);background:var(--surface);z-index:50;transform:translateX(103%);transition:transform .34s var(--spring);box-shadow:var(--sh2);overflow-y:auto}
+.sopanel.on{transform:none}
+.sopanel .inner{padding:22px 24px 60px}
+.sop-close{position:sticky;top:14px;margin-left:auto;display:block;width:30px;height:30px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--mute);font-size:13px;z-index:2}
+.dt-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.dt-title{font-family:var(--disp);font-weight:700;font-size:22px;letter-spacing:-.03em;margin-top:4px}
+.dt-tag{color:var(--mute);font-size:12.5px;margin-top:3px}
+.ref-add{border:1px dashed var(--faint);border-radius:14px;padding:14px;margin:14px 0 16px}
+.ref-add input[type=text],.ref-add textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;outline:none;margin-bottom:7px;background:var(--surface)}
+.filebtn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-size:12px;color:var(--ink2);cursor:pointer;background:var(--surface)}
+.ref-add .foot{display:flex;align-items:center;gap:8px;margin-top:6px}
+.ref-add .go{margin-left:auto;border:0;background:var(--ink);color:#fff;border-radius:11px;padding:8px 18px;font-size:12px;font-weight:700}
+.ref-add .go:disabled{opacity:.5}
+.refcard{border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:10px}
+.refcard .rh{display:flex;gap:12px}
+.refcard .thumb{width:70px;height:70px;border-radius:10px;object-fit:cover;background:var(--panel);border:1px solid var(--lineS);flex:none}
+.refcard .nm{font-weight:700;font-size:13px}
+.refcard .sm{font-size:11.5px;color:var(--ink2);margin-top:3px;line-height:1.55}
+.refcard .dtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:9px}
+.refcard .dtable td{padding:5px 8px;border-bottom:1px solid var(--lineS);vertical-align:top;line-height:1.55}
+.refcard .dtable td:first-child{font-family:var(--mono);font-size:10px;color:var(--acc);white-space:nowrap;width:40px}
+.refcard .bor{margin-top:7px;display:flex;flex-wrap:wrap;gap:4px}
+.refcard .bor span{font-size:10.5px;background:var(--accSoft);color:var(--accInk);border-radius:99px;padding:2px 9px}
+.refcard .caution{border:1px solid var(--lineS);border-left:3px solid var(--warn);border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--ink2);margin-top:8px}
+.refcard .del{border:0;background:none;font-size:11px;color:var(--faint);margin-top:6px;float:right}
+.refcard .del:hover{color:var(--danger)}
+.briefcard{border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:10px}
+.briefcard .bt{font-weight:700;font-size:13px}
+.briefcard .btrg{font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:2px}
+.briefcard pre{font-family:var(--body);white-space:pre-wrap;font-size:11.5px;color:var(--ink2);margin-top:8px;line-height:1.65;max-height:220px;overflow-y:auto;background:var(--panel);border-radius:10px;padding:10px}
+.briefcard .copy{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:5px 13px;font-size:11.5px;color:var(--ink2);margin-top:8px}
+.notewrap{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px;margin-top:14px}
+.notewrap textarea{width:100%;border:1px solid var(--lineS);border-radius:10px;padding:9px 11px;font-size:12.5px;min-height:60px;resize:vertical;outline:none;background:var(--panel)}
+.notewrap .foot{display:flex;align-items:center;gap:8px;margin-top:7px}
+.notewrap .save{margin-left:auto;border:0;background:var(--acc);color:#fff;border-radius:10px;padding:6px 14px;font-size:11.5px;font-weight:700}
+.notewrap .saved{font-family:var(--mono);font-size:10px;color:var(--ok)}
+
+.guide{position:fixed;inset:0;z-index:90;display:none;place-items:center;background:rgba(20,20,26,.4);backdrop-filter:blur(4px)}
+.guide.on{display:grid}
+.guide .box{width:min(580px,92vw);background:var(--surface);border-radius:22px;box-shadow:var(--sh2);padding:28px 30px;animation:rise .35s var(--spring)}
+.guide h2{font-family:var(--disp);font-weight:700;font-size:21px}
+.guide .lead{color:var(--mute);font-size:12.5px;margin-top:6px}
+.guide .gstep{display:grid;grid-template-columns:26px 1fr;gap:10px;margin-top:13px;align-items:start}
+.guide .gn{width:24px;height:24px;border-radius:99px;background:var(--accSoft);color:var(--accInk);display:grid;place-items:center;font-family:var(--mono);font-size:11px}
+.guide .gt{font-weight:700;font-size:13px}
+.guide .gd{font-size:12px;color:var(--ink2);margin-top:1px;line-height:1.6}
+.guide .gclose{margin-top:18px;width:100%;border:0;background:var(--ink);color:#fff;border-radius:13px;padding:11px;font-size:13px;font-weight:700}
+
+.toasts{position:fixed;top:64px;right:20px;z-index:70;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--ink);color:#fff;border-radius:12px;padding:10px 16px;font-size:12.5px;box-shadow:var(--sh2);animation:rise .3s var(--spring);max-width:380px}
+.toast.err{background:var(--danger)}
+.loading0{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:100}
+.loading0 .m{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--mute);text-transform:uppercase;animation:pulse 1.4s ease infinite}
+</style>
+</head>
+<body>
+<div id="netbar"></div><div id="netlabel"></div>
+
+<div class="loading0" id="boot">
+  <div style="text-align:center">
+    <div style="font-family:var(--disp);font-weight:700;font-size:28px;letter-spacing:-.03em">GEN<span style="color:var(--acc)">Z</span>O</div>
+    <div style="width:180px;height:3px;border-radius:99px;background:var(--lineS);margin:16px auto 12px;overflow:hidden"><div style="width:100%;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--acc),var(--accSoft),var(--acc));background-size:200% 100%;animation:shim 1.1s linear infinite"></div></div>
+    <div class="m" id="bootMsg" style="animation:none;letter-spacing:.2em">プロジェクトを読み込み中</div>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="logo" onclick="Nav.overview()">GEN<i>Z</i>O<small>コンセプトの現像室</small></div>
+  <span class="mono" id="revchip" style="font-size:9px;color:var(--faint)"></span><span class="projchip" id="projchip"></span>
+  <div class="cswitch" id="cswitch"></div>
+  <div class="tb-spacer"></div>
+  <div class="qpill" id="qpill"><span class="dot"></span><span id="qtext">生成中 0</span></div>
+  <button class="pill-btn" onclick="Guide.open()">使い方</button>
+  <button class="pill-btn" onclick="Codebook.open()">コード目録</button>
+  <button class="pill-btn" onclick="App.reload()">再読込</button>
+</header>
+
+<div class="viewwrap" id="viewwrap"><div id="view"></div></div>
+
+<div class="scrim" id="scrim" onclick="Panels.closeAll()"></div>
+<aside class="sopanel" id="briefs"><div class="inner" id="briefsInner"></div></aside>
+<aside class="sopanel wide" id="codebook"><div class="inner" id="codebookInner"></div></aside>
+<aside class="sopanel" id="tabmgr"><div class="inner" id="tabmgrInner"></div></aside>
+<aside class="sopanel" id="assistant"><div class="inner" id="assistantInner" style="display:flex;flex-direction:column;height:100%"></div></aside>
+<button id="assistantFab" onclick="Assistant.open()" title="AIアシスタント — このアプリの使い方・仕組み・いまのプロジェクト状態について質問できます" style="position:fixed;right:18px;bottom:18px;z-index:60;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--ink);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18)">✦</button>
+
+<div class="guide" id="guide">
+  <div class="box">
+    <h2>GENZO — RIB表現方向の現像室</h2>
+    <div class="lead">サントリーRIB（澄虎／ブレンデッド）の缶・広告の表現方向を、根拠と検証手段の付いた選択肢として現像し、そのまま消費者調査の計画へ接続する作業場。読者はこの案件の意思決定に関わる全員（初見の方を含む）。</div>
+    <div class="gstep"><div class="gn">1</div><div><div class="gt">情報の流れ</div><div class="gd">資料（戦略・コンセプト）は<b>出発点の資産</b>。このツールは資料の深堀と可能性の洗い出しを、コンセプト層（商品名・知覚設計）まで含めて行い、ビジュアルまで出し切る。ただし<b>全要素に出自（資料由来／ツール提案／未決）を明示</b>して追跡する。<b>01 調査</b>（事実と出典）→ <b>02 設計条件</b>→ <b>03 可動域</b>（動かせる4変数と実証された失敗前例）→ <b>方向</b>＝解釈の命題（「祓いの様式」等の言明。4変数すべてを命題から導出）× <b>版</b>＝執行（同じ命題を、色／図像／構図／素材のどの設計装置で運ぶかの3案。缶と広告のプロンプトは執行ごとに完全独立）→ <b>画像</b>（パッケージが先。広告バナーはカンプの缶を参照し同一に描く）→ <b>幅のマップ</b>（様式×強度×誤読境界の一枚絵）→ <b>調査計画</b>（台帳から自動集約された決め方）。全要素はこの流れの上流に遡れる。01〜03はページ最下部「根拠」に格納。</div></div></div>
+    <div class="gstep"><div class="gn">2</div><div><div class="gt">読む — 俯瞰と設計書</div><div class="gd">ページは 意図（コンセプト言明）→ 方向の定義（解釈空間の切り方）→ 俯瞰 の順。俯瞰は1行=1命題、右へ強度3水準の版が並びます。各版カードの「設計書」で、表現の決定ひとつひとつの根拠（事実+出典）・壁判定・調査で測ることがその場に展開されます。設計プロファイル表は各案の構造の一覧（色セル=その案が動かした変数。1行に1つだけ＝差分が単一変数に分離されている証明）。</div></div></div>
+    <div class="gstep"><div class="gn">3</div><div><div class="gt">作る — ＋で指示、画像は連鎖生成</div><div class="gd">各行右端の「＋」で派生、最下部の「＋ 新しい方向」で新規。指示（テキスト／📎画像→変数に言語化→借用）は、01〜03の知識と自動照合され、通過した版がすぐ行に追加されて現像が始まります。知識の外に出る指示だけは止まり、調査依頼書が起案されます（憶測で作らないための唯一の停止点）。</div></div></div>
+    <div class="gstep"><div class="gn">4</div><div><div class="gt">確かめる — コード目録と依頼書</div><div class="gd">コード目録（棚の慣習を共有数で判定する台帳）は右上。調査依頼書は発生場所——凍結中の方向の行と「根拠」節——から開く。参照缶の分解は独立機能ではなく、＋パネルに画像を入れたその場で走る。</div></div></div>
+    <button class="gclose" onclick="Guide.close()">はじめる</button>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="Light.close()"><img id="lbImg" alt=""><div class="lb-cap" id="lbCap"></div><button id="lbDl" onclick="event.stopPropagation();Light.download()" style="position:fixed;top:16px;right:18px;z-index:97;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer">フルサイズをダウンロード</button></div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ================= utils ================= */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var NET={n:0,seq:0,label:''};
+function _netbar(){
+  var b=document.getElementById('netbar'), l=document.getElementById('netlabel');
+  if(b)b.style.display=NET.n>0?'block':'none';
+  if(l){ l.style.display=NET.n>0?'block':'none'; l.textContent='通信中 '+NET.n+'件'+(NET.label?' — '+NET.label:''); }
+}
+var _FN_LB={generateVisual:'画像を生成', directInput:'設計を生成', getThumbs:'サムネ取得', approveProposal:'版を作成', approveNewDirection:'方向を作成', researchPlan:'調査計画', researchExecute:'接地調査', researchIntegrate:'調査統合', conceptIntakeBrief:'棚卸し起案', defineStyleGuide:'ルール定義', analyzeStyleAssets:'資料分析', saveSelection:'選定を保存'};
+function gs(fn){
+  var a=[].slice.call(arguments,1);
+  var id=++NET.seq, t0=Date.now();
+  glog('#'+id+' '+fn+' 開始'+(_FN_LB[fn]?'（'+_FN_LB[fn]+'）':''));
+  NET.n++; NET.label=_FN_LB[fn]||fn; _netbar();
+  // GAS 版の google.script.run の代替。サーバの POST /api/<fn> に引数配列を JSON で渡し、{ok,result|error} を受ける。
+  // 生成系は数分かかるため、ブラウザ側のタイムアウトは設けない（Cloud Run 側の --timeout に従う）
+  return fetch('/api/'+encodeURIComponent(fn),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args:a}),credentials:'same-origin'})
+    .then(function(resp){
+      return resp.text().then(function(txt){
+        var j=null; try{ j=JSON.parse(txt); }catch(e){}
+        if(!j){ throw new Error('サーバ応答を解釈できません (HTTP '+resp.status+'): '+txt.slice(0,160)); }
+        if(!j.ok){ throw new Error(j.error||('HTTP '+resp.status)); }
+        return j.result;
+      });
+    })
+    .then(function(r){ glog('#'+id+' '+fn+' 完了 ('+((Date.now()-t0)/1000).toFixed(1)+'s)'); NET.n--; _netbar(); return r; },
+          function(e){ var err=(e instanceof Error)?e:new Error(String(e)); if(/Failed to fetch|NetworkError|Load failed/i.test(err.message)) err=new Error('サーバに接続できません（回線・タイムアウト・再デプロイ中の可能性）: '+err.message); glog('#'+id+' '+fn+' 失敗 ('+((Date.now()-t0)/1000).toFixed(1)+'s): '+err.message); NET.n--; _netbar(); throw err; });
+}
+function toast(msg,err){var t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=msg;document.getElementById('toasts').appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(function(){t.remove();},400);},err?6500:3400);}
+
+var UI_REV = 79; // このindex.htmlが前提とするcode.gsのSEED_REV
+var TYPES=[{k:'board',lb:'世界観ボード',cls:'r169'},{k:'package',lb:'パッケージ',cls:'r34'},{k:'kv',lb:'広告ビジュアル',cls:'r169'}];
+var TYPE_LB={board:'世界観ボード',package:'パッケージ',kv:'広告ビジュアル'};
+var PHASES=[{k:'direction',lb:'方向合意'},{k:'comp',lb:'カンプ精緻化'},{k:'research',lb:'調査準備'}];
+var PH_LB={direction:'方向合意',comp:'カンプ精緻化',research:'調査準備'};
+var SYS_KEYS=[{k:'palette',lb:'色群'},{k:'motif',lb:'図像'},{k:'typography',lb:'書体'},{k:'composition',lb:'構図'},{k:'finish',lb:'仕上げ'}];
+
+var P=null, THUMBS={}, GEN={}, GROUND={}, FAILED={};
+try{ console.log('[GENZO] build UI v'+UI_REV+' 起動 — 全通信はこのコンソールに #連番で記録されます'); }catch(e){}
+setInterval(function(){
+  document.querySelectorAll('[data-genkey]').forEach(function(el){
+    var t0=GEN[el.dataset.genkey]; if(t0&&t0!==true) el.textContent='⚙ 生成中 '+_elapsedS(t0);
+  });
+  var ct=document.getElementById('cpLoadT');
+  if(ct&&Composer._t0) ct.textContent=_elapsedS(Composer._t0);
+},1000);
+var View={open:null}; // open={dirId,verId} 設計書をインライン展開中の版
+var Prop=null; // 現在の未承認提案
+
+function dirOf(id){var d=null;(P.directions||[]).forEach(function(x){if(x.id===id)d=x;});return d;}
+function verOf(dir,id){var v=null;(dir.versions||[]).forEach(function(x){if(x.id===id)v=x;});return v;}
+function refOf(id){var r=null;(P.refs||[]).forEach(function(x){if(x.id===id)r=x;});return r;}
+function conceptOf(id){var c=null;(P.concepts||[]).forEach(function(x){if(x.id===id)c=x;});return c||P.concepts[0];}
+function repOf(dir){return verOf(dir,dir.repVersionId)||dir.versions[0];}
+function cbCodeFor(codeStr){
+  var cb=P.audit&&P.audit.codebook; if(!cb||!cb.codes)return null;
+  var hit=null;
+  cb.codes.forEach(function(c){ var nm=c.attr.split(' ').slice(1).join(' '); if(nm&&codeStr.indexOf(nm)>=0)hit=c; });
+  return hit;
+}
+function cbShareHTML(codeStr){
+  var c=cbCodeFor(codeStr); if(!c)return '';
+  return ' <span style="font-family:var(--mono);font-size:9px;color:'+(c.isCode?'var(--accInk)':'var(--warn)')+'" title="コード目録の暫定符号化より（全セル確定で確定値）">棚の最多: '+esc(c.level)+' '+esc(c.share)+(c.isCode?'＝コード':'＝コード未成立（70%未満）')+'</span>';
+}
+
+/* ================= boot / nav ================= */
+var App={
+  async init(){
+    try{ P=await gs('getProject'); }
+    catch(e){ document.getElementById('boot').innerHTML='<div class="m" style="color:var(--danger);letter-spacing:.05em;text-transform:none">'+esc(e.message||e)+'</div>'; return; }
+    if(!P || P.version!==3 || !P.perception || !(P.perception.findings||[]).length){
+      document.getElementById('boot').innerHTML='<div style="max-width:520px;padding:24px;font-size:13px;line-height:1.8;color:var(--ink2)">'
+        +'<b style="color:var(--danger)">バックエンドが旧版のデータを返しています（v3のシードが届いていません）。</b><br><br>'
+        +'確認手順:<br>'
+        +'1. Cloud Run のリビジョンが最新のイメージ（server/genzo.js と public/index.html を同時に含むもの）か確認<br>'
+        +'2. <span class="mono">/healthz</span> を開き、<span class="mono">seedRev</span> がこの画面の UI_REV と一致するか確認<br>'
+        +'3. Cloud Run のログで <span class="mono">getProject</span> のエラー（保存先バケットの権限・Vertex AI の権限）を確認<br>'
+        +'4. 保存先バケットの <span class="mono">genzo_project.json</span> を削除（または退避）してから再読込</div>';
+      return;
+    }
+    document.getElementById('boot').style.display='none';
+    render(); loadThumbs(); Guide.maybeAuto();
+  },
+  loading(on,msg){
+    var b=document.getElementById('boot');
+    if(!b)return;
+    if(on){ var m=document.getElementById('bootMsg'); if(m&&msg)m.textContent=msg; b.style.display='grid'; }
+    else b.style.display='none';
+  },
+  async reload(){
+    this.loading(true,'最新の状態を取得中');
+    try{ P=await gs('getProject'); render(); loadThumbs(); toast('最新の状態を読み込みました'); }
+    catch(e){ toast('再読込に失敗: '+(e.message||e),true); }
+    this.loading(false);
+  },
+  async setConcept(id){ App.view='concept'; P.activeConceptId=id; gs('saveProject',{activeConceptId:id}); Nav.overview(); setTimeout(loadThumbs,50); },
+  setView(v){ App.view=v; View.open=null; Composer.anchor=null; render(); window.scrollTo({top:0}); }
+};
+App.view='concept';
+var NAME_SRC={
+ '澄虎':'資料の与件（サントリー資料p.11のネーミング）',
+ '澄雷':'ツール提案（型A・資料構造の緩和形の仮案。商標・先客・音の監査未実施）',
+ 'ミソギ':'ツール提案（型B・行為の名詞化の仮案。神事語彙の記号監査＋商標監査未実施）',
+ 'KIYOTORA':'ユーザー指示由来（型C・表記の転換。読み・商標の監査未実施）',
+ 'アワセ':'ツール（LLM）考案の第一仮案（型B1・合わせる名詞化×泡の掛詞。缶上の表記固定を兼ねる。商標・先客・音の監査未実施。対案: シラベ／トキワ）',
+ '朝霧':'漢字二字の情景型（晴れ風の文法）。日本酒先客の監査必須・監査未実施',
+ 'アサギリ':'（旧表記・朝霧へ変更済み）',
+ 'シジマ':'ツール提案（型Q1・静けさの和語の第一仮案。監査未実施）',
+ 'アワイ':'ツール提案（型N1・間の和語の第一仮案。ブレンデッドの作業ラベル「アワセ」と音近接＝識別監査必須・監査未実施）',
+ '宵':'ツール提案（型C1・都市の時間の第一仮案。「酔い」と同音＝自主基準検査必須・監査未実施）',
+ 'MISTY':'（旧作業ラベル）',
+ 'QUIET':'電通資料のコンセプトワードを作業ラベルとして流用（商品名ではない。商品名は本タブのアウトプット対象）',
+ 'NODE':'電通資料のコンセプトワードを作業ラベルとして流用（商品名ではない。商品名は本タブのアウトプット対象）',
+ 'CITY':'電通資料のコンセプトワードを作業ラベルとして流用（商品名ではない。商品名は本タブのアウトプット対象）'
+};
+var CONCEPT_LABEL={ sumitora:'澄虎', blended:'アワセ', 'den-misty':'アサギリ', 'den-quiet':'シジマ', 'den-node':'アワイ', 'den-city':'宵' };
+function canNameRow(sx){
+  if(sx&&sx.nameChoice&&sx.nameChoice.name){
+    var prov = /宣言待ち|暫定/.test(String(sx.nameChoice.status||''));
+    return '<div style="border:1px solid '+(prov?'var(--warn)':'var(--lineS)')+';border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;line-height:1.7">'
+      +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:2px">缶上の商品名（このバージョンの表記）</div>'
+      +'<b>'+esc(sx.nameChoice.name)+'</b> — '+esc(sx.nameChoice.basis)+'（'+esc(sx.nameChoice.status)+'）</div>';
+  }
+  var lg=sx&&sx.design&&sx.design.logo&&sx.design.logo.v||'';
+  var m=lg.match(/「(.+?)」/);
+  var nm=m?m[1]:(CONCEPT_LABEL[P&&P.activeConceptId]||'');
+  if(!nm)return '';
+  var src=NAME_SRC[nm]||'このバージョンの設計書ロゴ欄の宣言を参照';
+  return '<div style="border:1px solid var(--lineS);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;line-height:1.7">'
+    +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:2px">缶上の商品名（このバージョンの表記）</div>'
+    +'<b>'+esc(nm)+'</b> — 出自: '+esc(src)+'</div>';
+}
+var Nav={
+  overview(){ View.open=null; Composer.parentVer=null; render(); },
+  jumpDir(dirId){
+    var t=dirOf(dirId); if(!t)return;
+    if(t.conceptId!==P.activeConceptId||App.view!=='concept'){ App.view='concept'; P.activeConceptId=t.conceptId; View.open=null; Composer.anchor=null; render(); gs('saveProject',{activeConceptId:t.conceptId}).catch(function(){}); }
+    var el=document.getElementById('drow-'+dirId); if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+  },
+  openVer(dirId, verId){
+    if(View.open && View.open.dirId===dirId && View.open.verId===verId){
+      View.open=null; Composer.parentVer=null;
+    } else {
+      View.open={dirId:dirId, verId:verId};
+      Composer.target=dirId; Composer.parentVer=verId;
+    }
+    render(); loadThumbs();
+  }
+};
+var Light={
+  current:null,
+  fullLoaded:false,
+  download(){
+    var c=this.current; if(!c)return;
+    var go=function(uri){
+      var a=document.createElement('a'); a.href=uri; a.download=(c.file||'genzo')+'.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('フルサイズ画像をダウンロードしました');
+    };
+    var img=document.getElementById('lbImg');
+    if(this.fullLoaded&&img.src){ go(img.src); return; }
+    gs('getFullImage',c.file).then(go).catch(function(e){ toast(e&&e.message||'取得に失敗',true); });
+  },
+  open(dirId,verId,type){
+    var d=dirOf(dirId); if(!d)return;
+    var v=verOf(d,verId); if(!v)return;
+    var x=v.visuals&&v.visuals[type];
+    if(!(x&&x.file))return; // 未生成は開かない
+    var img=document.getElementById('lbImg');
+    document.getElementById('lbCap').textContent=d.name+' / '+v.label+' / '+TYPE_LB[type];
+    this.current={file:x.file}; this.fullLoaded=false;
+    if(THUMBS[x.file])img.src=THUMBS[x.file];
+    document.getElementById('lightbox').classList.add('on');
+    var self=this;
+    gs('getFullImage',x.file).then(function(uri){ img.src=uri; self.fullLoaded=true; }).catch(function(e){ if(!THUMBS[x.file]) toast('フルサイズ画像の取得に失敗: '+(e&&e.message||'回線状況を確認してください'),true); });
+  },
+  close(){ document.getElementById('lightbox').classList.remove('on'); }
+};
+
+var Guide={
+  shown:false,
+  open(){ document.getElementById('guide').classList.add('on'); },
+  close(){ document.getElementById('guide').classList.remove('on'); },
+  maybeAuto(){
+    var any=(P.directions||[]).some(function(d){return d.versions.some(function(v){return TYPES.some(function(t){var x=v.visuals&&v.visuals[t.k];return x&&x.file;});});});
+    if(!this.shown && !any){ this.shown=true; this.open(); }
+  }
+};
+
+/* ================= 生成キュー ================= */
+var Queue={
+  tasks:[], running:0, CONC:2,
+  key(d,v,t){return d+'/'+v+'/'+t;},
+  countMissing(dirs){
+    var n={board:0,package:0,kv:0,total:0};
+    dirs.forEach(function(d){ if(d.gated)return; d.versions.forEach(function(v){ TYPES.forEach(function(t){
+      var x=v.visuals&&v.visuals[t.k]; if(!(x&&x.file)){ n[t.k]++; n.total++; }
+    });});});
+    return n;
+  },
+  confirmBulk(dirs,label){
+    var n=Queue.countMissing(dirs);
+    if(!n.total){ toast('未生成の画像はありません'); return false; }
+    return window.confirm(label+'\n未生成 '+n.total+' 枚を生成します（ボード'+n.board+' / パッケージ'+n.package+' / KV'+n.kv+'）。\n画像APIの課金が発生します。実行しますか？');
+  },
+  pushDir(dirId){
+    var d=dirOf(dirId); if(!d)return;
+    if(!Queue.confirmBulk([d],'方向「'+(d.name||'')+'」'))return;
+    d.versions.forEach(function(v){ Queue.pushVer(dirId, v.id); });
+  },
+  pushAllVisible(){
+    var dirs=(P.directions||[]).filter(function(d){return d.conceptId===P.activeConceptId;});
+    var cpt=conceptOf(P.activeConceptId);
+    if(!Queue.confirmBulk(dirs,'タブ「'+(cpt?cpt.name.split('（')[0]:'')+'」'))return;
+    dirs.forEach(function(d){
+      if(d.gated)return;
+      d.versions.forEach(function(v){ Queue.pushVer(d.id, v.id); });
+    });
+  },
+  pushVer(dirId,verId){
+    var d=dirOf(dirId); if(!d)return;
+    if(d.gated){ toast('この方向は監査ギャップ未解消のため画像化できません',true); return; }
+    var v=verOf(d,verId); if(!v)return;
+    TYPES.forEach(function(t){ var x=v.visuals&&v.visuals[t.k]; if(!(x&&x.file)) Queue.push(dirId,verId,t.k); });
+  },
+  regen(btn){
+    var dd=btn.getAttribute('data-d'), vv=btn.getAttribute('data-v'), tt=btn.getAttribute('data-t');
+    if(!dd||!vv||!tt)return;
+    var note=window.prompt('この1枚へのディレクション（任意・空欄で設計通りに再生成）','');
+    if(note===null)return;
+    var d=dirOf(dd), v=d?verOf(d,vv):null;
+    if(v&&v.visuals[tt])v.visuals[tt]={status:'empty'};
+    this.push(dd,vv,tt,note||null);
+  },
+  push(dirId,verId,type,note){
+    var d=dirOf(dirId);
+    if(d&&d.gated){ toast('この方向は監査ギャップ未解消のため画像化できません',true); return; }
+    var _v=d?verOf(d,verId):null; var _pr=_v&&_v.spec&&_v.spec.prompts;
+    if(!(_pr&&_pr[type])){ toast('この版は設計（プロンプト）が未作成です。「＋派生を作る」で設計を作成してから画像化してください',true); return; }
+    var key=this.key(dirId,verId,type);
+    if(this.tasks.some(function(x){return x.key===key;})||GEN[key]){ glog('スキップ（既にキュー/生成中）: '+key); return; }
+    var task={key:key,d:dirId,v:verId,t:type,note:note||null};
+    if(type!=='package'){
+      var v0=d?verOf(d,verId):null;
+      var pkgDone=v0&&v0.visuals&&v0.visuals.package&&v0.visuals.package.file;
+      if(!pkgDone){ this.push(dirId,verId,'package'); task.needsPkg=true; } // カンプが基準。先に生成し、KVはそれを参照する
+    }
+    delete FAILED[key];
+    this.tasks.push(task);
+    glog('現像キューに追加: '+TYPE_LB[type]+' ('+dirId+'/'+verId+')'+(task.needsPkg?' — カンプ完了後に実行':''));
+    markCell(dirId,verId,type,'loading');
+    this.pump(); this.pill();
+  },
+  retryKey(dirId,verId,type){
+    delete FAILED[this.key(dirId,verId,type)];
+    this.push(dirId,verId,type);
+  },
+  _runnable(t){
+    if(!t.needsPkg)return true;
+    var d=dirOf(t.d), v=d?verOf(d,t.v):null;
+    if(v&&v.visuals&&v.visuals.package&&v.visuals.package.file)return true; // カンプ完了→解禁
+    var pkgKey=this.key(t.d,t.v,'package');
+    var pkgActive=this.tasks.some(function(x){return x.key===pkgKey;})||GEN[pkgKey];
+    return !pkgActive; // カンプが失敗等で不在なら単独実行（デッドロック回避）
+  },
+  pump(){
+    var self=this;
+    while(this.running<this.CONC&&this.tasks.length){
+      var idx=-1;
+      for(var i=0;i<this.tasks.length;i++){ if(this._runnable(this.tasks[i])){ idx=i; break; } }
+      if(idx<0)break; // 依存待ち
+      var t=this.tasks.splice(idx,1)[0]; this.running++;
+      (function(t){
+        var t0=Date.now();
+        glog('生成開始: '+TYPE_LB[t.t]+' ('+t.d+'/'+t.v+')');
+        gs('generateVisual',t.d,t.v,t.t,t.note||null).then(function(r){
+          glog('生成完了: '+TYPE_LB[t.t]+' ('+((Date.now()-t0)/1000).toFixed(1)+'s)');
+          THUMBS[r.file]=r.dataUri;
+          var d=dirOf(t.d); if(d){var v=verOf(d,t.v); if(v){v.visuals=v.visuals||{}; v.visuals[t.t]={status:'done',file:r.file};}}
+          setCellImage(t.d,t.v,t.t,r.dataUri,true);
+          _shrinkThumb(r.file); // 生成直後のフル画像data URIを縮小圧縮（メモリと再描画コストの抑制）
+        }).catch(function(e){
+          glog('生成失敗: '+TYPE_LB[t.t]+' ('+((Date.now()-t0)/1000).toFixed(1)+'s) — '+(e&&e.message||e));
+          markCell(t.d,t.v,t.t,'failed',(e&&e.message||String(e)));
+          toast(TYPE_LB[t.t]+' の生成に失敗: '+(e.message||e),true);
+          if(t.t==='package'){
+            // カンプ失敗時、待機中の依存タスク（board/kv）を解放して「静かな詰まり」を防ぐ
+            var dropped=self.tasks.filter(function(x){ return x.d===t.d&&x.v===t.v&&x.needsPkg; });
+            if(dropped.length){
+              self.tasks=self.tasks.filter(function(x){ return !(x.d===t.d&&x.v===t.v&&x.needsPkg); });
+              dropped.forEach(function(x){ markCell(x.d,x.v,x.t,'failed','カンプ失敗のため中止（再試行でカンプから作り直し）'); });
+              glog('カンプ失敗のため依存タスク'+dropped.length+'件を解放（再実行は各セルの「生成する」）');
+            }
+          }
+        }).finally(function(){ self.running--; self.pill(); self.pump(); });
+      })(t);
+    }
+    this.pill();
+  },
+  pill(){
+    var n=this.tasks.length+this.running;
+    document.getElementById('qpill').classList.toggle('on',n>0);
+    document.getElementById('qtext').textContent='生成中 '+n;
+  }
+};
+function cellId(d,v,t){return 'cell-'+d+'-'+v+'-'+t;}
+function regenBtnHtml(d,v,t){return '<button class="regen" data-d="'+d+'" data-v="'+v+'" data-t="'+t+'" title="この1枚だけ再生成（ディレクション入力可）" onclick="event.stopPropagation();Queue.regen(this)">↻</button>';}
+function cellInner(d,v,t){
+  var x=v.visuals&&v.visuals[t];
+  if(x&&x.file){
+    if(THUMBS[x.file]) return '<img src="'+THUMBS[x.file]+'" alt="">'+regenBtnHtml(d.id,v.id,t);
+    if(THUMB_FAIL[x.file]) return '<div class="empty"><div style="font-size:10.5px;color:var(--mute);margin-bottom:4px">画像を取得できません</div><button onclick="event.stopPropagation();delete THUMB_FAIL[\''+x.file+'\'];delete THUMB_MISS[\''+x.file+'\'];loadThumbs();this.textContent=\'再試行中…\'">読み込みを再試行</button></div>'+regenBtnHtml(d.id,v.id,t);
+    return '<div class="shimmer"></div><div class="devlb">読み込み中</div>';
+  }
+  var key=Queue.key(d.id,v.id,t);
+  if(FAILED[key]) return '<div class="empty err"><div>⚠ 生成に失敗</div><div class="errmsg" title="'+esc(FAILED[key].msg||'')+'">'+esc(String(FAILED[key].msg||'').slice(0,50))+'</div><button onclick="event.stopPropagation();Queue.retryKey(\''+d.id+'\',\''+v.id+'\',\''+t+'\')">再試行</button></div>';
+  if(GEN[key]) return '<div class="shimmer"></div><div class="devlb gen" data-genkey="'+key+'">⚙ 生成中 '+_elapsedS(GEN[key])+'</div>';
+  var _qt=null; Queue.tasks.forEach(function(x){ if(x.key===key)_qt=x; });
+  if(_qt) return '<div class="empty wait"><div>⏳ '+(_qt.needsPkg?'カンプ完了待ち':'順番待ち')+'</div></div>';
+  return '<div class="empty"><button onclick="event.stopPropagation();Queue.push(\''+d.id+'\',\''+v.id+'\',\''+t+'\')">生成する</button></div>';
+}
+function _elapsedS(t0){ if(t0===true)return ''; var s=Math.floor((Date.now()-t0)/1000); return s>=60?Math.floor(s/60)+'分'+(s%60)+'秒':s+'秒'; }
+function markCell(d,v,t,state,msg){
+  var key=Queue.key(d,v,t);
+  if(state==='loading'){ GEN[key]=GEN[key]&&GEN[key]!==true?GEN[key]:Date.now(); delete FAILED[key]; }
+  else if(state==='failed'){ delete GEN[key]; FAILED[key]={msg:msg||'不明なエラー', at:Date.now()}; }
+  else { delete GEN[key]; }
+  var el=document.getElementById(cellId(d,v,t)); if(!el)return;
+  var dd=dirOf(d), vv=dd?verOf(dd,v):null;
+  if(dd&&vv){ el.innerHTML=cellInner(dd,vv,t); return; }
+  if(state==='loading'){ el.innerHTML='<div class="shimmer"></div><div class="devlb gen" data-genkey="'+key+'">⚙ 生成中 0秒</div>'; }
+}
+function setCellImage(d,v,t,uri,animate){
+  delete GEN[Queue.key(d,v,t)];
+  var el=document.getElementById(cellId(d,v,t)); if(!el)return;
+  el.innerHTML='<img loading="lazy" decoding="async" '+(animate?'class="dev" ':'')+'src="'+uri+'" alt="">'+regenBtnHtml(d,v,t);
+}
+var THUMB_HEAVY_LIMIT=120000; // これを超えるdata URIは縮小圧縮の対象（サーバがサムネ化できずフル画像が来たケース）
+function _shrinkThumb(key){
+  var uri=THUMBS[key];
+  if(!uri||uri.length<=THUMB_HEAVY_LIMIT)return;
+  try{
+    var im=new Image();
+    im.onload=function(){
+      try{
+        var w=Math.min(360, im.naturalWidth||360);
+        var h=Math.round((im.naturalHeight||w)*(w/(im.naturalWidth||w)));
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(im,0,0,w,h);
+        var out=cv.toDataURL('image/jpeg',0.78);
+        if(out&&out.length>100&&out.length<uri.length){ THUMBS[key]=out; render(); }
+      }catch(e){}
+    };
+    im.src=uri;
+  }catch(e){}
+}
+var THUMB_PENDING={};
+var THUMB_FAIL={};   // 2回要求しても返ってこないファイル: 以後この画面セッションでは要求しない（無限再要求＝ちらつきの根絶）
+var THUMB_MISS={};   // 取りこぼし回数
+var FILE_CELLS={};   // file → このファイルを表示するセル [{d,v,t}]。到着時はそのセルだけを書き換え、全画面再描画をしない
+function _patchThumb(f){
+  // 全再描画（render）は既表示の全<img>を破棄→再生成し「激しい点滅」になる。
+  // 到着したファイルの表示先だけを直接書き換えることで、点滅ゼロで順次表示する。
+  (FILE_CELLS[f]||[]).forEach(function(c){
+    var el=document.getElementById(cellId(c.d,c.v,c.t));
+    if(el && THUMBS[f] && !GEN[Queue.key(c.d,c.v,c.t)]){
+      el.innerHTML='<img src="'+THUMBS[f]+'" alt="">'+regenBtnHtml(c.d,c.v,c.t);
+    }
+  });
+  var sel=document.getElementById('sel_'+f); // 選定テーブルのサムネ枠
+  if(sel && THUMBS[f]){
+    sel.innerHTML='<img src="'+THUMBS[f]+'" style="width:54px;border-radius:6px;cursor:pointer" onclick="Light.open(\''+sel.dataset.d+'\',\''+sel.dataset.v+'\',\'package\')">';
+  }
+}
+function _patchThumbFail(f){
+  (FILE_CELLS[f]||[]).forEach(function(c){
+    var el=document.getElementById(cellId(c.d,c.v,c.t));
+    if(el && !GEN[Queue.key(c.d,c.v,c.t)]){
+      el.innerHTML='<div class="empty"><div style="font-size:10.5px;color:var(--mute);margin-bottom:4px">画像を取得できません</div><button onclick="event.stopPropagation();delete THUMB_FAIL[\''+f+'\'];delete THUMB_MISS[\''+f+'\'];loadThumbs();this.textContent=\'再試行中…\'">読み込みを再試行</button></div>'+regenBtnHtml(c.d,c.v,c.t);
+    }
+  });
+  var sel=document.getElementById('sel_'+f);
+  if(sel) sel.innerHTML='<span style="color:var(--mute);font-size:10.5px">取得不可</span>';
+}
+var _renderTimer=null;
+function scheduleRender(){ // サムネ到着ごとの render() 連打を1回/150msに束ねる（画面のちらつき防止）
+  if(_renderTimer)return;
+  _renderTimer=setTimeout(function(){ _renderTimer=null; render(); },150);
+}
+function glog(msg){ try{ console.log('[GENZO '+new Date().toTimeString().slice(0,8)+'] '+msg); }catch(e){} }
+async function loadThumbs(){
+  // 再入ガード: 実行中の再呼び出し（render経由）は「もう一周」の予約に変換する。
+  // 旧実装は render→loadThumbs→worker内render→… の再入で同じ重いファイルを多重要求し、
+  // 応答のたびに全再描画が走る嵐（ちらつき・クリック不能）を起こしていた。
+  if(loadThumbs._running){ loadThumbs._again=true; return; }
+  loadThumbs._running=true;
+  try{
+    do{
+      loadThumbs._again=false;
+      var act=[], rest=[];
+      (P.directions||[]).forEach(function(d){d.versions.forEach(function(v){TYPES.forEach(function(t){
+        var x=v.visuals&&v.visuals[t.k];
+        if(x&&x.file){
+          (FILE_CELLS[x.file]=FILE_CELLS[x.file]||[]).length=0;
+          FILE_CELLS[x.file].push({d:d.id,v:v.id,t:t.k});
+          if(!THUMBS[x.file]&&!THUMB_PENDING[x.file]&&!THUMB_FAIL[x.file]){ (d.conceptId===P.activeConceptId?act:rest).push(x.file); }
+        }
+      });});});
+      (P.refs||[]).forEach(function(r){if(r.imageFile&&!THUMBS[r.imageFile]&&!THUMB_PENDING[r.imageFile]&&!THUMB_FAIL[r.imageFile])rest.push(r.imageFile);});
+      // 全コンセプト分（数百枚）の一括取得は他の通信を数分間圧迫する。表示中のコンセプト分＋参照画像だけを取り、
+      // 他コンセプト分はそのタブを開いたとき・選定タブでのみ取得する
+      var need=(App.view==='select')?act.concat(rest):act.concat(rest.filter(function(f){ return (P.refs||[]).some(function(r){return r.imageFile===f;}); }));
+      need=need.filter(function(f,i){return need.indexOf(f)===i;});
+      if(!need.length)break;
+      glog('サムネ取得開始: '+need.length+'件');
+      need.forEach(function(f){THUMB_PENDING[f]=1;});
+      var chunks=[]; for(var i=0;i<need.length;i+=6)chunks.push(need.slice(i,i+6));
+      var idx=0, retried={};
+      var resolve1=function(f){ delete THUMB_PENDING[f]; delete THUMB_MISS[f]; };
+      var miss1=function(f){
+        THUMB_MISS[f]=(THUMB_MISS[f]||0)+1;
+        if(THUMB_MISS[f]>=2){ THUMB_FAIL[f]=1; delete THUMB_PENDING[f]; glog('サムネ取得断念（2回不着）: '+f); _patchThumbFail(f); }
+        else { delete THUMB_PENDING[f]; } // 次周期でもう1回だけ試す
+      };
+      async function worker(){
+        while(idx<chunks.length){
+          var my=chunks[idx++];
+          try{
+            var m=await gs('getThumbs',my)||{};
+            var defer=m._deferred||[]; delete m._deferred;
+            Object.keys(m).forEach(function(k){ THUMBS[k]=m[k]; resolve1(k); _patchThumb(k); });
+            Object.keys(m).forEach(_shrinkThumb);
+            // 後回し（フル画像経路）は同一走査内で1枚ずつ再取得。pendingは保持し多重要求を防ぐ
+            defer.forEach(function(f){ if(!retried[f]){ retried[f]=1; chunks.push([f]); } });
+            // 返答にも後回しにも含まれない＝サーバがファイルを見つけられない等。取りこぼしとして記録
+            my.forEach(function(f){ if(!(f in m)&&defer.indexOf(f)<0) miss1(f); });
+          }catch(e){
+            var requeue=my.filter(function(f){ return !retried[f]; });
+            if(my.length>1&&requeue.length){ requeue.forEach(function(f){ retried[f]=1; chunks.push([f]); }); }
+            else {
+              my.forEach(miss1);
+              glog('サムネ取得失敗: '+my.join(', ')+' — '+(e&&e.message||e));
+              if(!loadThumbs._warned){
+                loadThumbs._warned=true;
+                toast('画像サムネイルの取得に失敗しました。回線・プロキシ環境の可能性があります（各セルをクリックするとフルサイズ表示/ダウンロードは試せます）',true);
+              }
+            }
+          }
+        }
+      }
+      var ws=[]; for(var w=0;w<Math.min(4,chunks.length);w++)ws.push(worker());
+      await Promise.all(ws);
+    } while(loadThumbs._again);
+  } finally {
+    loadThumbs._running=false;
+  }
+}
+
+/* ================= render ================= */
+function render(){
+  renderTop();
+  if(App.view==='base') renderBase();
+  else if(App.view==='select') renderSelect();
+  else renderOverview();
+  Queue.pill();
+}
+function renderTop(){
+  var cs=document.getElementById('cswitch');
+  var addBtn='<button class="tab" style="font-weight:700" onclick="Actions.addConcept()" title="④ 資料外の新コンセプトをタブとして追加">＋ 新コンセプト</button>';
+  var _hid=(P.tabPrefs&&P.tabPrefs.hidden)||[];
+  var _mgBtn='<button style="font-weight:700" onclick="TabMgr.open()" title="タブの表示/非表示・並び順を管理（整理状況はプロジェクトに自動保存）">⚙'+(_hid.length?' <span style="font-size:9.5px;opacity:.75">'+_hid.length+'非表示</span>':'')+'</button>';
+  cs.innerHTML='<button class="'+(App.view==='base'?'on':'')+'" onclick="App.setView(\'base\')" style="font-weight:700" title="カテゴリの共通基盤: 棚の観察記録・ビール共通のデザインルール・規制">🏛 土台</button>'
+    +(P.concepts||[]).filter(function(c){
+      // 非表示タブは描画しない。ただし作業中（active）のタブは、生成キュー等から飛んだ場合に迷子にならないよう
+      // 「(非表示中)」の目印つきで描画する——隠す操作はナビの整理であって、作業座標を消す操作ではない
+      return _hid.indexOf(c.id)<0 || (App.view==='concept'&&c.id===P.activeConceptId);
+    }).map(function(c){
+    var ghosted=_hid.indexOf(c.id)>=0;
+    return '<button class="'+(App.view==='concept'&&c.id===P.activeConceptId?'on':'')+'"'+(ghosted?' style="opacity:.65;font-style:italic"':'')+' onclick="App.setConcept(\''+c.id+'\')">'+esc(c.name.split('（')[0])+(ghosted?' <span style="font-size:9px">(非表示中)</span>':'')+'</button>';
+  }).join('')+addBtn
+    +'<button class="'+(App.view==='select'?'on':'')+'" onclick="App.setView(\'select\')" style="font-weight:700" title="全コンセプト横断で検証に回す案を決める">⚖ 選定</button>'
+    +_mgBtn;
+  var pj=document.getElementById('projchip'); if(pj)pj.textContent=(P.meta&&P.meta.name)?(P.meta.name+(P.meta.client?' / '+P.meta.client:'')):'';
+  var rc=document.getElementById('revchip'); if(rc)rc.textContent='UI v'+UI_REV+' / GS v'+(P.seedRev||'?');
+  var oldw=document.getElementById('revwarn'); if(oldw)oldw.remove();
+  if(P.seedRev!==UI_REV){
+    var w=document.createElement('div'); w.id='revwarn';
+    w.style.cssText='background:var(--ink);color:#fff;font-size:12px;line-height:1.7;padding:10px 16px;border-radius:12px;margin:8px 14px;border-left:4px solid var(--warn)';
+    w.innerHTML=(P.seedRev<UI_REV)
+      ?'<b>サーバ（server/genzo.js）が旧版のまま動いています</b>（この画面は v'+UI_REV+' 前提、サーバは v'+(P.seedRev||'?')+'）。最新のイメージを Cloud Run にデプロイし直してから、この画面を再読込してください（ブラウザキャッシュが残る場合は強制再読込）。'
+      :'<b>画面（public/index.html）が旧版です</b>（サーバ v'+(P.seedRev||'?')+' / この画面 v'+UI_REV+'）。ブラウザを強制再読込するか、最新のイメージを再デプロイしてください。';
+    var tb=document.querySelector('.topbar'); if(tb&&tb.parentNode)tb.parentNode.insertBefore(w,tb.nextSibling);
+  }
+}
+
+/* ---------- 土台: カテゴリの共通基盤（意思決定①: 何が動かせないかを合意する） ---------- */
+function renderBase(){
+  var h='<div class="container" style="padding-bottom:80px">';
+  h+='<div class="secttl"><h2>土台 — ビールカテゴリの共通基盤</h2><span class="sub">全コンセプトが従う観察・ルール・規制。ここが変わると、すべてのコンセプトの生成が変わる</span></div>';
+  var cb=P.audit&&P.audit.codebook;
+  // ① 棚の観察記録
+  h+='<div class="secttl" style="margin-top:14px"><h2 style="font-size:15px">① 棚の観察記録</h2><span class="sub">売れ筋8缶＋誤読リスク缶の見た目を8属性で記録した表。王道の共通項・各銘柄の目印・模倣検知はすべてここから計算される</span>'
+    +'<button class="tbtn" style="margin-left:auto" onclick="Codebook.open()">観察表を開く（符号化・裁定）</button></div>';
+  if(cb){
+    var encN=Object.keys(cb.table||{}).length, pend=0;
+    (cb.targets||[]).concat(cb.refTargets||[]).forEach(function(t){ var r=cb.table&&cb.table[t.id]; if(r){ cb.schema.forEach(function(a){ var c=r.cells&&r.cells[a.id]; if(!c||c.status==='needs-adjudication')pend++; }); } });
+    h+='<div style="font-size:11.5px;color:var(--ink2);margin-bottom:6px">符号化済み '+encN+'/'+((cb.targets||[]).length)+'缶'
+      +(pend?'・<b style="color:#a15c00">裁定待ちセル '+pend+'</b>（実物画像で確定すると、王道の共通項と模倣検知の精度がそのまま上がる）':'・裁定待ちなし')+'</div>';
+    if(cb.codes&&cb.codes.length){
+      h+='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:6px 0 3px">王道の共通項（8缶の最頻値）— 「王道／定番」指定時の基準</div><table class="cbtable">';
+      cb.codes.forEach(function(c){ h+='<tr><td style="white-space:nowrap">'+esc(c.attr)+'</td><td><b>'+esc(c.level)+'</b> <span style="color:var(--mute)">'+esc(String(c.share||''))+'</span></td></tr>'; });
+      h+='</table><div style="font-size:10.5px;color:var(--mute);margin-top:3px">各銘柄の「目印」（真似するとその銘柄っぽくなる属性の組）は、②のビール王道／定番を展開すると一覧できる。</div>';
+    }
+    // 王道の性格軸のサマリ（編集・承認は観察表ドロワーで）
+    var arcs=(cb.archetypes||[]);
+    if(arcs.length){
+      var refN=(cb.refTargets||[]).length, refEnc=(cb.refTargets||[]).filter(function(t){return cb.table&&cb.table[t.id];}).length;
+      h+='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:12px 0 3px">王道の性格軸 — 拮抗属性（最頻が割れている属性）を系統別に規定する分解。承認した軸だけが設計知識に接続される</div>';
+      h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      arcs.forEach(function(a){
+        var ok=a.status==='approved';
+        h+='<span style="font-size:11px;border:1px solid '+(ok?'var(--accInk)':'var(--line)')+';border-radius:999px;padding:3px 10px;background:var(--surface)"><b>'+esc(a.name)+'</b> '+(a.members||[]).length+'缶 <span style="color:'+(ok?'var(--accInk)':'#a15c00')+'">'+(ok?'承認済':'承認待ち')+'</span></span>';
+      });
+      h+='</div><div style="font-size:10.5px;color:var(--mute);margin-top:3px">参照缶 '+refEnc+'/'+refN+'本符号化済み（王道の計算には数えない・性格軸の解像度と模倣検知の網を広げる）。構成の編集と承認は「観察表を開く」から。</div>';
+    }
+  } else {
+    h+='<div style="font-size:11.5px;color:var(--mute)">観察記録が未初期化です。</div>';
+  }
+  // ② ビール共通のデザインルール
+  h+='<div class="secttl" style="margin-top:24px"><h2 style="font-size:15px">② ビール共通のデザインルール</h2><span class="sub">崩すと「ビールに見えなくなる」規則。全コンセプトの生成に自動適用</span></div>';
+  h+=Rules.globalSectionHTML();
+  // ③ 規制・禁止事項
+  h+='<div class="secttl" style="margin-top:24px"><h2 style="font-size:15px">③ 規制・禁止事項</h2><span class="sub">酒類の広告・容器表示の自主基準等との適合。語彙単位の可否と、全画像生成に注入される禁止事項</span></div>';
+  var rg=P.audit&&P.audit.regulations;
+  if(rg&&rg.vocab&&rg.vocab.length){
+    h+='<table class="cbtable"><thead><tr><th>表現</th><th>判定</th><th>根拠</th></tr></thead><tbody>';
+    rg.vocab.forEach(function(v){ if(v.scope&&v.scope!=='global')return;
+      h+='<tr><td style="white-space:nowrap"><b>'+esc(v.term)+'</b></td><td style="white-space:nowrap">'+esc(v.verdict)+'</td><td style="font-size:11px">'+esc(v.basis||v.note||'')+'</td></tr>'; });
+    h+='</tbody></table>';
+  }
+  var proh=(P.audit&&P.audit.prohibitions||[]).filter(function(x){return typeof x==='string';});
+  if(proh.length){
+    h+='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:8px 0 3px">禁止事項（全生成に適用）</div>';
+    proh.forEach(function(x){ h+='<div style="font-size:11.5px;line-height:1.7">・'+esc(x)+'</div>'; });
+  }
+  // ④ 調査
+  h+='<div class="secttl" style="margin-top:24px"><h2 style="font-size:15px">④ 調査依頼書</h2><span class="sub">未処理の依頼と、解決済みの記録</span>'
+    +'<button class="tbtn" style="margin-left:auto" onclick="Briefs.open()">依頼書を開く</button></div>';
+  h+='</div>';
+  document.getElementById('view').innerHTML=h;
+  Composer.afterRender&&Composer.afterRender();
+}
+
+/* ---------- 選定: 検証に回す案を決める（意思決定③: 全コンセプト横断） ---------- */
+var Select={
+  saveTimer:null,
+  picks(){ return (P.selection&&P.selection.picks)||{}; },
+  toggle(dirId, verId){
+    P.selection=P.selection||{}; P.selection.picks=P.selection.picks||{};
+    if(P.selection.picks[dirId]) delete P.selection.picks[dirId];
+    else P.selection.picks[dirId]={verId:verId, reason:'', date:new Date().toISOString().slice(0,10)};
+    render(); this.save();
+  },
+  reason(dirId, el){ var pk=this.picks(); if(pk[dirId]){ pk[dirId].reason=el.value; this.save(); } },
+  note(el){ P.selection=P.selection||{}; P.selection.note=el.value; this.save(); },
+  save(){
+    clearTimeout(this.saveTimer);
+    this.saveTimer=setTimeout(function(){
+      gs('saveSelection',{picks:Select.picks(), note:(P.selection&&P.selection.note)||''})
+        .catch(function(e){ toast('選定の保存に失敗: '+(e.message||e),true); });
+    }, 900);
+  }
+};
+function renderSelect(){
+  var h='<div class="container" style="padding-bottom:80px">';
+  h+='<div class="secttl"><h2>選定 — 検証に回す案を決める</h2><span class="sub">全コンセプト横断。賭け × 現物 × 棚での立ち位置 × リスクを同じ視野で比較し、候補と理由を記録する</span></div>';
+  var rows=[];
+  (P.concepts||[]).forEach(function(c){
+    (P.directions||[]).filter(function(d){ return d.conceptId===c.id&&!d.gated; }).forEach(function(d){
+      var v=(d.versions||[]).filter(function(x){return x.id===d.repVersionId;})[0]||d.versions[0];
+      if(v) rows.push({c:c,d:d,v:v});
+    });
+  });
+  if(!rows.length){
+    h+='<div style="color:var(--mute);font-size:12px">候補がまだありません。各コンセプトで方向を作ると、代表版がここに並びます。</div></div>';
+    document.getElementById('view').innerHTML=h; return;
+  }
+  h+='<table class="cbtable"><thead><tr><th style="width:120px">候補</th><th>コンセプト</th><th>案（命題・名前）</th><th>賭け — なぜ売れると読むか</th><th>現物</th><th>棚での立ち位置</th><th>リスク（検証仮説）</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var sx=r.v.spec||{}; var picked=!!Select.picks()[r.d.id];
+    var pkg=r.v.visuals&&r.v.visuals.package&&r.v.visuals.package.file;
+    var sc=sx.shelfCheck, nr=sc&&sc.nearest;
+    var breaks=(sx.ledger&&sx.ledger.breaks)||[];
+    h+='<tr'+(picked?' style="background:var(--surface)"':'')+'>'
+      +'<td><button class="tbtn"'+(picked?' style="font-weight:800"':'')+' onclick="Select.toggle(\''+r.d.id+'\',\''+r.v.id+'\')">'+(picked?'✓ 検証候補':'候補にする')+'</button>'
+      +(picked?'<br><input placeholder="選定理由" value="'+esc(Select.picks()[r.d.id].reason||'')+'" oninput="Select.reason(\''+r.d.id+'\',this)" style="margin-top:4px;width:110px;font-size:10.5px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:transparent">':'')+'</td>'
+      +'<td style="white-space:nowrap">'+esc((r.c.name||'').split('（')[0])+'</td>'
+      +'<td><b>'+esc(r.d.name)+'</b>'+(sx.nameChoice?'<br>「'+esc(sx.nameChoice.name)+'」':'')+(sx.proposition?'<br><span style="color:var(--mute);font-size:10.5px">'+esc(sx.proposition)+'</span>':'')+'</td>'
+      +'<td style="font-size:11px;line-height:1.6;max-width:250px">'+esc((sx.bet||'').slice(0,110))+((sx.bet||'').length>110?'…':'')+'</td>'
+      +'<td><span id="sel_'+(pkg||'')+'" data-d="'+r.d.id+'" data-v="'+r.v.id+'">'+(pkg&&THUMBS[pkg]?'<img src="'+THUMBS[pkg]+'" style="width:54px;border-radius:6px;cursor:pointer" onclick="Light.open(\''+r.d.id+'\',\''+r.v.id+'\',\'package\')">':'<span style="color:var(--mute);font-size:10.5px">'+(pkg?'読み込み中…':'未生成')+'</span>')+'</span></td>'
+      +'<td style="font-size:11px;line-height:1.6;white-space:nowrap">'+(nr?('近接: '+esc(String(nr.brand).replace(/^[^ ]+ /,''))+' '+nr.match+'/'+nr.total+'<br>王道破り '+(sc.attrs||[]).filter(function(a){return !a.follows;}).length+'属性'):'<span style="color:var(--mute)" title="承認時に自動照合。この版が照合導入前の場合は派生を1回作ると付与される">未照合</span>')+'</td>'
+      +'<td style="font-size:11px;line-height:1.6;max-width:220px">'+(breaks.length?esc((breaks[0].hypothesis||'').slice(0,90))+(breaks.length>1?'<br><span style="color:var(--mute)">他'+(breaks.length-1)+'件</span>':''):'<span style="color:var(--mute)">—</span>')+'</td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  var picks=Select.picks(); var pickedRows=rows.filter(function(r){ return picks[r.d.id]; });
+  h+='<div class="secttl" style="margin-top:26px"><h2 style="font-size:15px">決定の記録</h2><span class="sub">候補・理由・メモは保存され、下の検証計画に自動接続される</span></div>';
+  h+='<textarea placeholder="選定メモ（合議の結論・保留の理由など）" oninput="Select.note(this)" rows="3" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;background:var(--surface);font-family:inherit;resize:vertical">'+esc((P.selection&&P.selection.note)||'')+'</textarea>';
+  if(pickedRows.length){
+    h+='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:14px 0 4px">検証計画 — 選定候補の仮説集約（各案の台帳「破り」から自動）</div>';
+    h+='<table class="cbtable"><thead><tr><th>候補</th><th>検証する仮説</th><th>測り方</th></tr></thead><tbody>';
+    pickedRows.forEach(function(r){
+      (((r.v.spec||{}).ledger||{}).breaks||[]).forEach(function(b){
+        h+='<tr><td style="white-space:nowrap">'+esc(r.d.name)+(r.v.spec&&r.v.spec.nameChoice?'「'+esc(r.v.spec.nameChoice.name)+'」':'')+'</td><td>'+esc(b.hypothesis||'')+'</td><td>'+esc(b.measure||'')+'</td></tr>';
+      });
+    });
+    h+='</tbody></table>';
+  }
+  h+='</div>';
+  document.getElementById('view').innerHTML=h;
+  loadThumbs();
+}
+
+/* ---------- 概要（前提→俯瞰キャンバス→設計マップ→比較） ---------- */
+function renderOverview(){
+  var cid=P.activeConceptId, cpt=conceptOf(cid);
+  var dirs=(P.directions||[]).filter(function(d){return d.conceptId===cid;});
+  var h='<div class="container" style="padding-bottom:80px">';
+
+  // 俯瞰キャンバス: 方向=行 × 版=横並び（派生・新規もすべてこの一画面に現れる）
+  // ① 意図: コンセプトの言明（サントリー資料出典） → ② 方向の定義（解釈空間の切り方）
+  var cpt=(P.concepts||[]).filter(function(c){return c.id===P.activeConceptId;})[0]||{};
+  var _gN=(P.styleGuides||[]).filter(function(g){return g.scope==='global';}).length+2;
+  var _lN=(P.styleGuides||[]).filter(function(g){return g.scope===cid;}).length;
+  h+='<div style="border:1px solid var(--lineS);border-radius:12px;padding:8px 14px;margin-bottom:14px;font-size:11.5px;background:var(--surface)">'
+    +'<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
+    +'<span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2)">この開発の前提</span>'
+    +'<span>ビール共通ルール <b>'+_gN+'件</b> <a href="#" onclick="App.setView(\'base\');return false">🏛 土台で管理</a></span>'
+    +'<span>このコンセプト専用の決めごと <b>'+_lN+'件</b> <a href="#" onclick="App.premOpen=!App.premOpen;render();return false">'+(App.premOpen?'閉じる ▴':'ここで管理 ▾')+'</a></span>'
+    +'<span style="color:var(--mute)">全生成に自動実行: 王道照合＋模倣検知 → 候補の比較は <a href="#" onclick="App.setView(\'select\');return false">⚖ 選定</a></span>'
+    +'</div>'
+    +(App.premOpen?'<div style="border-top:1px solid var(--lineS);margin-top:8px;padding-top:9px">'+Rules.conceptBodyHTML()+'</div>':'')
+    +'</div>';
+  var _isNewCpt=/新規作成/.test(cpt.sourceNote||'');
+  h+='<div class="secttl"><h2>意図 — '+esc(cpt.name||'')+'</h2><span class="sub">'+(_isNewCpt?'ツール上で作成した新コンセプト':'出典: 260702 RIBコンセプト資料（サントリー）')+'</span></div>';
+  h+='<div style="border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:16px 18px;margin-bottom:8px">'
+    +'<div><span style="display:inline-block;background:var(--ink);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:6px;padding:3px 10px">決まっていること</span></div>'
+      +(cpt.naming?'<div style="font-size:12px;line-height:1.75;margin-top:6px"><b style="white-space:nowrap">'+(cpt.namingStatus==='working'?'<span style="color:#fff;background:var(--warn);border-radius:5px;padding:1px 7px;font-size:10.5px;margin-right:6px">商品名 未決 — 本ツールのアウトプット対象</span>':'<span style="color:#fff;background:var(--ok);border-radius:5px;padding:1px 7px;font-size:10.5px;margin-right:6px">ネーミング 与件</span>')+'</b>'+esc(cpt.naming)+'</div>':'')
+      +(cpt.sourceNote?'<div style="font-size:11px;color:var(--mute);line-height:1.65;margin-top:5px">'+esc(cpt.sourceNote)+'</div>':'')
+      +(cpt.sheet?(function(){
+        var ROWS=[['context','時代性/社会性の文脈'],['insight','インサイト'],['brandConcept','ブランドコンセプト'],['devConcept','開発コンセプト ≒争点'],['analogy','手をつなぐ市場アナロジー'],['benefitP','ベネフィット（物性）'],['benefitE','ベネフィット（情緒）'],['fact','ファクト'],['pColor','知覚設計: 色'],['pName','知覚設計: 製品名'],['pDba','知覚設計: DBA']];
+        var _pend=ROWS.filter(function(r){var f=cpt.sheet[r[0]];return f&&f.src==='未決';}).length;
+        var hh='<div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="display:inline-block;background:var(--ink);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:6px;padding:3px 10px">コンセプトシート — 各セルの出自つき</span>'
+          +(_pend?'<button class="tbtn" onclick="Actions.draftSheet(\''+cpt.id+'\')">🖋 未決'+_pend+'セルをAIで下書き</button>':'')+'</div>';
+        hh+='<div style="font-size:11px;color:var(--ink2);line-height:1.7;margin-top:5px">設計生成に<b>必須なのは「インサイト」と「開発コンセプト」の2行だけ</b>。他は任意——埋まるほど設計・名前・コピーの導出が具体になる。セルをクリックすると記入でき、AIの下書き（出自「AI下書き（未確認）」）を修正して確定させる進め方もできる。</div>';
+        hh+='<table class="cbtable" style="margin-top:6px">';
+        var _REQ={insight:1, devConcept:1};
+        ROWS.forEach(function(r){ var f=cpt.sheet[r[0]]; if(!f)return;
+          var col=f.src==='資料'?'var(--ok)':(f.src==='未決'?'var(--warn)':'var(--accInk)');
+          var col2=f.src==='ツール上で定義'?'var(--ink)':col;
+          hh+='<tr><td style="white-space:nowrap;font-weight:700;min-width:120px">'+esc(r[1])+(_REQ[r[0]]?' <span style="font-size:9px;color:#fff;background:var(--acc);border-radius:4px;padding:1px 5px;vertical-align:1px">必須</span>':'')+'</td>'
+            +'<td style="cursor:pointer" title="クリックで定義・編集（アウトプットとして保存されます）" onclick="Actions.editSheet(\''+cpt.id+'\',\''+r[0]+'\',\''+esc(r[1])+'\')">'+(f.v==='未決'?'<span style="color:var(--mute)">未決'+(_REQ[r[0]]?'（クリックで記入）':'（任意・クリックで記入）')+'</span>':esc(f.v))+' <span style="color:var(--faint);font-size:10px">✎</span></td>'
+            +'<td style="white-space:nowrap"><span style="font-size:10px;font-weight:700;color:'+col2+';border:1px solid '+col2+';border-radius:5px;padding:1px 6px">'+esc(f.src)+'</span></td></tr>';
+        });
+        hh+='</table>';
+        return hh;
+      })():'')
+    +'<div style="font-size:14.5px;font-weight:700;line-height:1.7;margin-top:3px">'+esc(cpt.statement||'')+'</div>'
+    +'<div style="font-size:12px;color:var(--ink2);line-height:1.7;margin-top:4px">'+esc(cpt.insight||'').replace('気枯れを祓いたい','<b style="color:var(--accInk);font-size:13px">気枯れを祓いたい</b>')+(cpt.nakami?' ／ 中味: '+esc(cpt.nakami):'')+'</div>'
+    +(cpt.keyterms?'<div style="font-size:11px;color:var(--mute);line-height:1.7;margin-top:6px;border-top:1px dashed var(--lineS);padding-top:6px">'+esc(cpt.keyterms)+'</div>':'')
+    +(cpt.openQuestion?'<div style="margin-top:14px"><span style="display:inline-block;background:var(--ink);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:6px;padding:3px 10px">言葉では決められないこと — 表現課題</span></div>'
+      +'<div style="font-size:15px;font-weight:700;color:var(--accInk);line-height:1.9;margin-top:4px">'+esc(cpt.openQuestion)+'</div>':'')
+    +'<div style="margin-top:14px"><span style="display:inline-block;background:var(--ink);color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:6px;padding:3px 10px">この作業場ですること</span></div>'
+    +'<div style="font-size:12px;color:var(--ink2);line-height:1.8;margin-top:3px">相互排他な解釈の幅を張り、缶と広告に現像し、各解釈が破る棚の慣習ごとに検証仮説を立て、1回の調査で「どの解釈に、どの声量で投資するか」を決める。</div>'
+    +'</div>';
+  if(cpt.framing){
+    h+='<div class="secttl" style="margin-top:18px"><h2>方向の定義 — 候補、棄却、生存</h2><span class="sub">棄却には手続き（記号監査・規制）がある。候補の列挙側にはまだ手続きがなく作業仮説——確立の調査を起案済み</span></div>';
+    h+='<div style="border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:16px 18px;margin-bottom:8px">'
+      +'<div style="font-size:12.5px;color:var(--ink2);line-height:1.85">'+esc(cpt.framing)+' <span style="color:var(--mute);font-size:10.5px">（この切り方は資料でなく、このツール側の設計判断）</span></div>';
+    if(cpt.derivationStatus){
+      h+='<div style="margin-top:10px;border:1px solid var(--warn);border-radius:10px;padding:9px 12px;font-size:11.5px;line-height:1.7;color:var(--ink)">'
+        +esc(cpt.derivationStatus)
+        +' <button class="tbtn" style="margin-left:6px" onclick="Briefs.open()">範囲確定の調査依頼書を開く</button></div>';
+    }
+    if(cpt.derivation&&cpt.derivation.length){
+      h+='<table class="cbtable" style="margin-top:12px"><thead><tr><th>検討した意匠体系</th><th>浄化・信用を担ってきた根拠（出典）</th><th>判定</th><th>判定の根拠（規制・監査・実証）</th></tr></thead><tbody>';
+      cpt.derivation.forEach(function(x){
+        var col=x.verdict.indexOf('採用')===0?'var(--ok)':(x.verdict.indexOf('凍結')===0?'var(--warn)':'var(--danger)');
+        h+='<tr><td style="min-width:130px"><b>'+esc(x.candidate)+'</b></td><td>'+esc(x.source)+'</td><td style="white-space:nowrap;color:'+col+';font-weight:700">'+esc(x.verdict)+'</td><td>'+esc(x.reason)+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    h+='<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'
+      +dirs.map(function(d){var rv=repOf(d);var prop=rv&&rv.spec?rv.spec.proposition:'';
+        return '<button class="tbtn" style="text-align:left;max-width:340px" onclick="document.getElementById(\'drow-'+d.id+'\')&&document.getElementById(\'drow-'+d.id+'\').scrollIntoView({behavior:\'smooth\',block:\'center\'})"><b>'+esc(d.name.split(' ')[0])+'</b> '+esc(prop||'')+'</button>';}).join('')
+      +'</div></div>';
+  }
+
+  if(cpt.structure){
+    var st=cpt.structure;
+    var byId={}; dirs.forEach(function(d){byId[d.id]=d;});
+    h+='<div class="secttl" style="margin-top:22px"><h2>5案の関係 — 解釈空間の構造</h2><span class="sub">'+esc(st.basis)+'</span></div>';
+    var QW=960,QH=580,MX=150,MY=80,CX2=QW/2,CY2=QH/2,CW=310,CH=140;
+    h+='<div class="cmpwrap" style="padding:4px 0"><svg viewBox="0 0 '+QW+' '+QH+'" class="qmap" style="width:100%;max-width:880px;margin:0 auto;display:block">';
+    h+='<line x1="'+MX+'" y1="'+CY2+'" x2="'+(QW-MX)+'" y2="'+CY2+'" stroke="var(--line)" stroke-width="1.5"/>';
+    h+='<line x1="'+CX2+'" y1="'+MY+'" x2="'+CX2+'" y2="'+(QH-MY)+'" stroke="var(--line)" stroke-width="1.5"/>';
+    h+='<text x="'+(MX-8)+'" y="'+(CY2+4)+'" text-anchor="end" font-size="15" font-weight="700" fill="var(--ink)">'+esc(st.x.neg)+'</text>';
+    h+='<text x="'+(QW-MX+8)+'" y="'+(CY2+4)+'" text-anchor="start" font-size="15" font-weight="700" fill="var(--ink)">'+esc(st.x.pos)+'</text>';
+    h+='<text x="'+CX2+'" y="'+(MY-14)+'" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">'+esc(st.y.pos)+'</text>';
+    h+='<text x="'+CX2+'" y="'+(QH-MY+26)+'" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">'+esc(st.y.neg)+'</text>';
+    h+='<text x="'+(QW-MX)+'" y="'+(CY2+30)+'" text-anchor="end" font-size="11.5" fill="var(--ink2)">'+esc(st.x.label)+'</text>';
+    h+='<text x="'+(CX2+10)+'" y="'+(MY+6)+'" text-anchor="start" font-size="11.5" fill="var(--ink2)">'+esc(st.y.label)+'</text>';
+    function qpos(qx,qy){ return { x: CX2 + qx*180 - CW/2, y: CY2 - qy*125 - CH/2 }; }
+    (st.cells||[]).forEach(function(c){
+      var d2=byId[c.dirId]; if(!d2)return;
+      var sp=(repOf(d2).spec||{});
+      var pp=qpos(c.x,c.y);
+      h+='<foreignObject x="'+pp.x+'" y="'+pp.y+'" width="'+CW+'" height="'+CH+'">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" onclick="document.getElementById(\'drow-'+d2.id+'\').scrollIntoView({behavior:\'smooth\',block:\'center\'})" style="cursor:pointer;border:1.5px solid var(--acc);border-radius:12px;background:var(--surface);padding:11px 13px;font-family:inherit;height:100%;box-sizing:border-box;overflow:hidden">'
+        +'<div style="font-size:14px;font-weight:700;line-height:1.35">'+esc(d2.name)+'</div>'
+        +'<div style="font-size:12.5px;font-weight:700;color:var(--accInk);margin-top:3px">「'+esc(sp.proposition||'')+'」</div>'
+        +'<div style="font-size:11.5px;color:var(--ink2);line-height:1.55;margin-top:4px">'+esc(c.why)+'</div>'
+        +'</div></foreignObject>';
+    });
+    (st.empties||[]).forEach(function(e){
+      var pp=qpos(e.x,e.y);
+      h+='<foreignObject x="'+pp.x+'" y="'+pp.y+'" width="'+CW+'" height="'+CH+'">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" style="border:1.5px dashed var(--warn);border-radius:12px;background:transparent;padding:11px 13px;font-family:inherit;height:100%;box-sizing:border-box;overflow:hidden">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--warn)">空白象限</div>'
+        +'<div style="font-size:11.5px;color:var(--ink2);line-height:1.55;margin-top:4px">'+esc(e.note)+'</div>'
+        +'</div></foreignObject>';
+    });
+    var ctr=byId[st.center]||dirOf(st.center); // 統制は他タブ共用があり得る（②は①S-0を原点に共有）
+    if(ctr){
+      var foreign = ctr.conceptId!==cpt.id;
+      h+='<foreignObject x="'+(CX2-105)+'" y="'+(CY2-36)+'" width="210" height="72">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" onclick="Nav.jumpDir(\''+ctr.id+'\')" style="cursor:pointer;border:1.5px solid var(--ink);border-radius:12px;background:var(--panel);padding:8px 10px;text-align:center;font-family:inherit">'
+        +'<div style="font-size:13px;font-weight:700">'+esc(ctr.name.split(' ')[0])+' 統制'+(foreign?'（共用）':'')+'</div>'
+        +'<div style="font-size:11px;color:var(--ink2)">'+(foreign?esc(conceptOf(ctr.conceptId).name.split('（')[0])+'タブの基準線を原点に共有':'様式ゼロ＝原点。全象限の基準線')+'</div>'
+        +'</div></foreignObject>';
+    }
+    h+='</svg></div>';
+    h+='<div style="font-size:12.5px;color:var(--ink2);line-height:1.8;margin:6px 0 4px"><b style="color:var(--ink)">洗い出しの検査:</b> '+esc(st.coverage)+'</div>';
+  }
+
+  var nameRule='名前＝<b>各方向の完成案の一部</b>（設計書の「缶上の商品名」欄で宣言・出自つき。禁止は無宣言の変動のみ）';
+  h+='<div class="secttl" style="margin-top:22px"><h2>'+esc(cpt.name)+' — 俯瞰</h2><span class="sub">1行=1方向、右へ版が増える。設計書はカードの「設計書」でその場に展開</span>'
+    +'<span style="font-size:10.5px;border:1px solid var(--line);border-radius:8px;padding:4px 9px;color:var(--ink2);line-height:1.5">'+nameRule+'。画像に別名が出た版は「画像から採録」で正式化</span><span style="flex:1"></span><button class="tbtn" onclick="Queue.pushAllVisible()">未生成を一括画像化</button></div>';
+  h+='<div class="dirrows">';
+  dirs.forEach(function(d){
+    h+='<div class="drow" id="drow-'+d.id+'">';
+    // 左: 方向ヘッダ
+    h+='<div class="dh2">'
+      +'<div class="oh-nm" onclick="Nav.openVer(\''+d.id+'\',\''+d.repVersionId+'\')">'+esc(d.name)+'</div>'
+      +((repOf(d).spec||{}).proposition?'<div style="font-size:12px;font-weight:700;color:var(--accInk);line-height:1.6;margin-top:4px">「'+esc(repOf(d).spec.proposition)+'」</div>':'')
+      +((repOf(d).spec||{}).bet?'<div style="font-size:11px;color:var(--ink2);line-height:1.65;margin-top:5px"><span style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2)">賭け </span>'+esc(repOf(d).spec.bet)+'</div>':'')
+      +'<div class="oh-meta"><span class="phch click '+esc(d.phase)+'" style="position:static" title="クリックでフェーズを切替" onclick="Ops.cyclePhase(\''+d.id+'\')">'+esc(PH_LB[d.phase]||d.phase)+'</span>'
+      +(d.axis&&d.axis.control?'<span class="vd ok" style="letter-spacing:0;text-transform:none">基準線</span>':'')
+      +'<span class="vd" style="letter-spacing:0;text-transform:none;background:var(--panel);color:var(--mute)">版 '+d.versions.length+'</span>'
+      +(d.note?'<span class="vd ok" style="letter-spacing:0;text-transform:none">メモ</span>':'')+'</div>'
+      +'<div class="oh-aim">'+esc((repOf(d).spec||{}).aim||'')+'</div>'
+      +(d.gated?'<div class="gatebar">⚠ '+esc(d.gated)
+        +' <button class="tbtn" style="margin-left:8px;font-weight:700" '+(GROUND[d.id]?'disabled':'')+' onclick="Actions.ground(\''+d.id+'\')">'+(GROUND[d.id]?'グラウンディング監査 実行中…':'⚡ グラウンディングで今すぐ監査')+'</button>'
+        +' <button class="tbtn" style="margin-left:4px" onclick="Briefs.open()">調査依頼書を開く</button></div>':'')
+      +(((d.versions||[]).length<3&&!(d.axis&&d.axis.control))?'<button class="openbtn" onclick="Actions.buildLevels(\''+d.id+'\')">3水準を構築</button>':'')
+      +'<button class="openbtn" onclick="Queue.pushDir(\''+d.id+'\')">この行を一括画像化</button>'
+      +'<button class="openbtn" style="color:var(--danger)" onclick="Actions.clearDir(\''+d.id+'\')" title="この行の全版の生成画像を削除して未生成に戻す（設計は残る）">この行の画像をクリア</button>'
+      +'</div>';
+    // 右: 版ストリップ（base→派生の時系列）
+    h+='<div class="vstrip">';
+    d.versions.forEach(function(v){
+      var isRep=(d.repVersionId===v.id);
+      h+='<div class="vcard'+(isRep?' repv':'')+'" id="vcard-'+d.id+'-'+v.id+'">'
+        +'<div class="vmeta">'
+        +'<div class="vh2"><span class="vl">'+esc(v.label)+'</span>'+(isRep?'<span class="repm">●代表</span>':'')+'</div>'
+        +(v.origin&&v.origin.verdict&&v.origin.verdict.status==='warn'?'<div><span class="warnchip" title="'+esc((v.origin.verdict.warnings||[]).map(function(x){return x.wall+': '+(x.alternative||'');}).join(' / '))+'">⚠ 壁に接触→代替採用</span></div>':'')
+        +(v.origin&&v.origin.inputSummary&&v.parentId?'<div class="vsrc">← '+esc(v.origin.inputSummary.slice(0,42))+'</div>':'')
+        +(v.spec&&v.spec.shelfCheck&&v.spec.shelfCheck.nearest?(function(){var sc=v.spec.shelfCheck;var br=(sc.attrs||[]).filter(function(a){return !a.follows;}).length;return '<div class="vsrc" title="王道の共通項と全銘柄への機械照合。詳細は設計書の「棚での立ち位置」">棚: 近接 '+esc(String(sc.nearest.brand).replace(/^[^ ]+ /,''))+' '+sc.nearest.match+'/'+sc.nearest.total+'・王道破り'+br+'</div>';})():'')
+        +'</div>'
+        +'<div><div class="celllb">世界観ボード</div><div class="cell r169" id="'+cellId(d.id,v.id,'board')+'" onclick="Light.open(\''+d.id+'\',\''+v.id+'\',\'board\')">'+cellInner(d,v,'board')+'</div></div>'
+        +'<div class="subrow">'
+        +'<div><div class="celllb">パッケージ</div><div class="cell r34" id="'+cellId(d.id,v.id,'package')+'" onclick="Light.open(\''+d.id+'\',\''+v.id+'\',\'package\')">'+cellInner(d,v,'package')+'</div></div>'
+        +'<div><div class="celllb">広告ビジュアル</div><div class="cell r169" id="'+cellId(d.id,v.id,'kv')+'" onclick="Light.open(\''+d.id+'\',\''+v.id+'\',\'kv\')">'+cellInner(d,v,'kv')+'</div></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:10px;align-items:center">'
+        +'<button class="vopen" onclick="Nav.openVer(\''+d.id+'\',\''+v.id+'\')">'+(View.open&&View.open.dirId===d.id&&View.open.verId===v.id?'設計書を閉じる':'設計書を開く')+'</button>'
+        +'<button class="vopen" onclick="Composer.openDeriveFrom(\''+d.id+'\',\''+v.id+'\')" title="この案の設計と画像をベースにディレクションして派生を作る">この案をベースに派生</button>'
+        /* 採択ボタンは非表示（ユーザー指示・Actions.recapture自体は温存） */+''
+        +(function(){
+          var seedExec = !v.parentId && /-(v0|vLo|vHi)$/.test(v.id);
+          var b='<button class="vopen" onclick="Actions.clearVer(\''+d.id+'\',\''+v.id+'\')" title="生成画像だけ削除して未生成に戻す（設計の箱と3幅の構造は残る）">画像をクリア</button>';
+          if(!seedExec) b+='<button class="vopen" style="color:var(--danger)" onclick="Actions.delVer(\''+d.id+'\',\''+v.id+'\')" title="派生の箱ごと削除（設計・画像とも消える）">箱を削除</button>';
+          return b;
+        })()
+        +'</div>'
+        +'</div>';
+    });
+    if(d.axis&&d.axis.control){
+      h+='<div style="align-self:center;font-size:10.5px;color:var(--mute);border:1px dashed var(--line);border-radius:8px;padding:6px 9px;max-width:180px;line-height:1.6">統制＝基準線のため執行幅（vLo/vHi）は張らない（幅を張ると比較の分母が動く）。派生は可</div>';
+    }
+    if(!d.gated){
+      var cOpen=Composer.isFor(d.id);
+      h+='<button class="addcard'+(cOpen?' isopen':'')+'" onclick="Composer.openDerive(\''+d.id+'\')" title="'+(cOpen?'下に入力フォームを展開中（クリックで閉じる）':'この方向に指示を出して派生を作る')+'">＋<span>派生を作る</span></button>';
+    }
+    h+='</div>';
+    if(Composer.isFor(d.id))h+=Composer.html();
+    if(View.open&&View.open.dirId===d.id){
+      var ovv=verOf(d,View.open.verId);
+      if(ovv)h+=detailHTML(d,ovv);
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  var rsLogs=(P.research||[]).filter(function(r){return r.conceptId===P.activeConceptId;});
+  var _intakeBtn='<button class="addrow" style="font-size:12.5px" onclick="Research.runIntake()" '+(Research.busy?'disabled':'')+'>'
+    +(Research.busy?('<span class="dot"></span> '+esc(Research.prog||'内部リサーチを実行中…'))
+    :('🔎 このコンセプトの知識を調える（内部リサーチ: 先客・規制・借用元の初期棚卸し）'+(rsLogs.length?' — 実施済み'+rsLogs.length+'回':'')))
+    +'</button>';
+  if(!dirs.length){
+    // 新規コンセプトの空状態: 進め方の順序を明示する（順序で迷わせない）。
+    // 設計上の真実: どちらが先でも壊れない——生成が先でも、知識の外の指示はgap判定→調査が自動で挟まる。
+    h+='<div style="border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 18px;margin-bottom:10px">'
+      +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:6px">このコンセプトの進め方 — まだ方向がありません</div>'
+      +'<div style="font-size:12px;line-height:1.85;color:var(--ink2)">'
+      +'<b>手順1（済んでいれば飛ばす）:</b> 上のコンセプトシートで<b>「インサイト」と「開発コンセプト」</b>の2行が入っていることを確認する——設計生成の必須材料はこの2行だけです。<br>'
+      +'<b>手順2（推奨）:</b> 「知識を調える」で初期棚卸しリサーチを回す。このコンセプトが触りそうな記号・語彙の<b>先客・規制・借用元</b>を先に検査して監査台帳へ入れます（数分。以降の全生成を最初から制約する知識になります）。<br>'
+      +'<b>手順3:</b> 「＋新しい方向」で最初の様式を起こす。王道ブレンドやテキスト指示はここから。<br>'
+      +'<span style="color:var(--mute);font-size:11px"><b>手順2と3の関係（重要）:</b> 生成を先にしても止まりはしませんが、両者は別の網です。生成時の自動調査（gap判定）が捕まえるのは<b>「指示の解釈に足りない知識」だけ</b>——指示が知識内なら発火せず、設計が使う記号の先客・規制は未検証のまま<b>「監査未実施」の仮案</b>として出てきます。後の監査で先客・誤読リスクが見つかった方向は<b>凍結されて画像化が止まります</b>（手戻り）。つまり、探索を急ぐなら生成先行も可。ただし<b>検証・提案に回す前には棚卸しが必要</b>——順序の自由は省略の自由ではありません。</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">'
+      +'<span style="font-size:10px;color:var(--mute)">手順2→</span>'+_intakeBtn
+      +'<span style="font-size:10px;color:var(--mute)">手順3→</span>'
+      +'<button class="addrow" style="margin:0" onclick="Composer.openNew()">＋ 新しい方向</button>'
+      +'</div></div>';
+  } else {
+    h+='<button class="addrow" onclick="Composer.openNew()">＋ 新しい方向</button>';
+    h+='<div style="margin-top:8px">'+_intakeBtn+'</div>';
+  }
+  if(Composer.anchor&&Composer.anchor.type==='new')h+='<div class="cpanel standalone">'+Composer.html(true)+'</div>';
+
+  // 意思決定の材料は 賭け（俯瞰の各行）× 現物（カンプ）× 検証計画（下の調査計画）の3つ。
+  // 属性差の計数スコア層は撤去済み: 計数は記述であって知覚の予測ではなく、等重み・閾値に実証がないため。
+  // 誤読は台帳の仮説と調査計画の測定項目としてのみ扱う（数えるのは調査で消費者）。
+  if(dirs.length>1){
+    // 決め方 — 調査計画（各設計書の台帳から自動集約）    // 決め方 — 調査計画（各設計書の台帳から自動集約）    // 決め方 — 調査計画（各設計書の台帳から自動集約）    // 決め方 — 調査計画（各設計書の台帳から自動集約）
+    h+='<div class="secttl" style="margin-top:26px"><h2>決め方 — 調査計画（台帳から自動集約）</h2><span class="sub">統制案を基準線に、全案を1回の相対評価に載せる（絶対→相対→要素分解の定石）。各行の仮説が反証されたら、その様式はその声量では成立しない</span></div>';
+    h+='<div class="cmpwrap"><table class="cbtable"><thead><tr><th>案（命題）</th><th>検証する仮説（台帳の「破り」から）</th><th>測り方</th></tr></thead><tbody>';
+    dirs.forEach(function(d){
+      var sxp=repOf(d).spec||{}; var lg=sxp.ledger||{breaks:[]};
+      var hyp, how;
+      if(d.gated){ hyp='（監査未了のため調査設計に載せない）'; how='—'; }
+      else if(!(lg.breaks||[]).length){ hyp='基準線。仮説は持たず、全案の効果測定の分母になる'; how=esc(sxp.measurement||''); }
+      else {
+        hyp=lg.breaks.map(function(b){return '<div style="margin-bottom:4px"><b>'+esc(b.code)+'</b>'+cbShareHTML(b.code)+' を破る → '+esc(b.hypothesis||'')+'</div>';}).join('');
+        how=lg.breaks.map(function(b){return '<div style="margin-bottom:4px">'+esc(b.measure||'')+'</div>';}).join('')+'<div style="color:var(--mute)">'+esc(sxp.measurement||'')+'</div>';
+      }
+      h+='<tr'+(d.gated?' class="gatedrow"':'')+'><td style="min-width:150px"><b>'+esc(d.name)+'</b><br><span style="color:var(--mute);font-size:10.5px">「'+esc(sxp.proposition||'')+'」</span></td><td>'+hyp+'</td><td>'+how+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+
+  // 根拠（01-03）: 本編の下に格納。全方向の由来。
+  // 根拠（01-03）: 本編の下に格納。全方向の由来。
+  var openBriefs=(P.briefs||[]).filter(function(b){return b.status!=='closed';}).length;
+  h+='<div class="secttl" id="evidenceSec" style="margin-top:40px"><h2>根拠 — 01 調査 / 02 設計条件 / 03 可動域</h2><span class="sub">上の全方向・全版はこの3節から導出されている。デザインルールはページ上部「この開発の前提」と🏛土台で管理</span>'
+    +'<button class="tbtn" style="margin-left:auto" onclick="Briefs.open()">調査依頼書'+(openBriefs?'（未処理 '+openBriefs+'）':'')+'</button></div>';
+  // 認識5段
+  var pf=P.perception||{};
+  var fmap={}; (pf.findings||[]).forEach(function(f){fmap[f.id]=f;});
+  h+='<div class="percep">';
+  h+='<details><summary><span class="step">01</span>調査 — 規制 / 前例 / 需要 / 記号 / 検証手法<span class="cnt">'+((pf.findings||[]).length)+'件・出典付き</span></summary><div class="body">';
+  if(pf.intro)h+='<div class="pintro">'+esc(pf.intro)+'</div>';
+  (pf.questions||[]).forEach(function(q){
+    h+='<div class="qblock"><div class="qh"><span class="qid">'+esc(q.id)+'</span>'+esc(q.q)+'</div>';
+    (q.finds||[]).forEach(function(fid){
+      var f=fmap[fid]; if(!f)return;
+      h+='<div class="fitem">'+(f.title?'<div class="fti">'+esc(f.title)+'</div>':'')+'<div class="ftx">'+esc(f.fact)+'</div>'
+        +((f.sources||[]).length?'<div class="fsrc">'+f.sources.map(function(sc){return '<a href="'+esc(sc.url)+'" target="_blank" rel="noopener">'+esc(sc.title)+'</a>';}).join('')+'</div>':'')+'</div>';
+    });
+    h+='</div>';
+  });
+  h+='</div></details>';
+  h+='<details><summary><span class="step">02</span>設計条件 — 制約と機会<span class="cnt">'+((pf.implications||[]).length)+'</span></summary><div class="body">';
+  (pf.implications||[]).forEach(function(i){
+    h+='<div class="iitem2"><div class="ic">'+esc(i.claim)+'</div>'
+      +'<div class="ifr"><span class="lb">根拠</span>'+(i.from||[]).map(function(fid){
+        var f=fmap[fid]; if(!f)return '';
+        return '<span class="fchip" title="'+esc(f.fact)+'">'+esc(f.title||fid)+'</span>';
+      }).join('')+'</div></div>';
+  });
+  h+='</div></details>';
+  var sp=P.space||{};
+  h+='<details><summary><span class="step">03</span>可動域 — 4変数の共通条件と失敗前例<span class="cnt">'+((sp.variables||[]).length)+'変数</span></summary><div class="body">'
+    +(sp.derivation?'<div class="pintro">'+esc(sp.derivation)+'</div>':(sp.note?'<div class="pintro">'+esc(sp.note)+'</div>':''))
+    +'<table class="sptable"><thead><tr><th>変数</th><th>全案共通の条件</th><th>実証された失敗前例（越えると壊れる）</th></tr></thead><tbody>';
+  (sp.variables||[]).forEach(function(v){
+    h+='<tr><td>'+esc(v.id)+' '+esc(v.name)+'</td><td>'+esc(v.floor)+'</td><td>'+esc(v.ceiling)+'</td></tr>';
+  });
+  h+='</tbody></table></div></details>';
+  h+='</div>';
+
+
+
+  h+='</div>';
+
+  document.getElementById('view').innerHTML=h;
+
+  // 画像流し込み（全版）
+  dirs.forEach(function(d){
+    d.versions.forEach(function(vv){
+      TYPES.forEach(function(t){
+        var x=vv.visuals&&vv.visuals[t.k];
+        var key=Queue.key(d.id,vv.id,t.k);
+        var pending=Queue.tasks.some(function(q){return q.key===key;});
+        if(x&&x.file&&THUMBS[x.file]) setCellImage(d.id,vv.id,t.k,THUMBS[x.file],false);
+        else if(pending||GEN[key]) markCell(d.id,vv.id,t.k,'loading');
+      });
+    });
+  });
+  Composer.afterRender();
+}
+
+/* ---------- 版の設計書（行内ドロワー） ---------- */
+function detailHTML(d, v){
+  var sx=v.spec||{};
+  var h='<div class="vdetail">';
+  h+='<div class="vdh"><span class="vl">'+esc(v.label)+'</span>'
+    +(d.repVersionId===v.id?'<span class="vd ok">代表版</span>':'<button class="tbtn" onclick="Ops.setRep(\''+d.id+'\',\''+v.id+'\')">代表版にする</button>')
+    +(v.origin&&v.origin.inputSummary?'<span style="font-size:11px;color:var(--mute)">由来: '+esc(v.origin.inputSummary)+'</span>':'')
+    +'<span class="sp"></span>'
+    +(v.parentId?'<button class="tbtn danger" onclick="Ops.delVer(\''+d.id+'\',\''+v.id+'\')">この版を削除</button>':'')
+    +'<button class="tbtn danger" onclick="Ops.delDir(\''+d.id+'\')">方向ごと削除</button>'
+    +'<button class="tbtn" onclick="Nav.openVer(\''+d.id+'\',\''+v.id+'\')">閉じる ▴</button></div>';
+  if(sx.bet)h+=canNameRow(sx)+'<div style="border-left:3px solid var(--acc);padding:2px 0 2px 10px;margin-bottom:8px"><div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2)">賭け — 誰のどの瞬間に効くと読むか</div><div style="font-size:12px;color:var(--ink);line-height:1.75;margin-top:2px">'+esc(sx.bet)+'</div></div>';
+  if(sx.proposition)h+='<div style="font-size:13px;font-weight:700;color:var(--accInk);line-height:1.7;margin-bottom:4px">命題「'+esc(sx.proposition)+'」</div>';
+  h+='<div class="vaim">'+esc(sx.aim||'')+'</div>';
+  h+=(sx.design?(function(){
+        var dz=sx.design, ORD=[['surface','地（色・素材）'],['motif','図像'],['layout','構図・領域'],['logo','ロゴの扱い'],['copy','広告コピー']];
+        var LBMAP={surface:'地',motif:'図像',layout:'構図',logo:'ロゴ',copy:'コピー'};
+        var hh='';
+        if(sx._revision){
+          var rv=sx._revision;
+          var kept=['surface','motif','layout','logo','copy'].filter(function(k){return (rv.changed||[]).indexOf(k)<0;});
+          hh+='<div style="border:1px solid var(--lineS);border-radius:10px;padding:8px 12px;margin-top:8px;font-size:11.5px;line-height:1.7">'
+            +'<span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2)">統制された改訂</span> '
+            +'この派生で動かした変数: <b>'+((rv.changed||[]).length?(rv.changed||[]).map(function(k){return LBMAP[k]||k;}).join('・'):'なし')+'</b>'
+            +' ／ 親の値を維持: '+(kept.length?kept.map(function(k){return LBMAP[k]||k;}).join('・'):'なし')
+            +((rv.reverted||[]).length?'<br><span style="color:#a15c00">宣言外の変更 '+rv.reverted.map(function(k){return LBMAP[k]||k;}).join('・')+' を検出し、親の値へ差し戻しました（指示にない変数は動かさない統制）</span>':'')
+            +'</div>';
+        }
+        hh+='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:10px 0 4px">設計の言語化 — 値と理由</div>';
+        hh+='<table class="cbtable">';
+        ORD.forEach(function(o){ var f=dz[o[0]]; if(!f)return;
+          hh+='<tr><td style="white-space:nowrap;font-weight:700;min-width:86px">'+esc(o[1])+'</td><td><b>'+esc(f.v)+'</b><br><span style="color:var(--mute)">理由: '+esc(f.why)+'</span></td></tr>';
+        });
+        hh+='</table>';
+        return hh;
+      })():'')
+  h+=(sx.recaptureFit?'<div style="border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:11.5px;line-height:1.7;color:var(--ink2)">'+esc(sx.recaptureFit)+'</div>':'')
+  +(d.audits&&d.audits.length?(function(){
+        var hh='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:10px 0 4px">監査記録 — グラウンディング（web検索・出典つき）</div>';
+        d.audits.forEach(function(a){
+          hh+='<div style="border:1px solid '+(a.verdict==='clear'?'var(--ok)':'var(--warn)')+';border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:11.5px;line-height:1.7">'
+            +'<b>'+(a.verdict==='clear'?'判定: クリア（条件つき）':'判定: 凍結維持')+'</b>'
+            +' <span style="color:var(--mute)">'+esc(a.date||'')+' / '+esc(a.method||'')+'</span>'
+            +'<div>'+esc(a.summary||'')+'</div>'
+            +(a.verdictReason?'<div style="color:var(--ink2)">理由: '+esc(a.verdictReason)+'</div>':'')
+            +((a.conditions||[]).length?'<div style="margin-top:3px"><b>識別条件:</b> '+a.conditions.map(esc).join(' ／ ')+'</div>':'')
+            +((a.findings||[]).length?'<div style="margin-top:3px"><b>出典:</b> '+a.findings.map(function(f){
+                var lab=esc((f.publisher||'')+(f.title?'『'+f.title+'』':'')+(f.year?'（'+f.year+'）':''));
+                return f.url?'<a href="'+esc(f.url)+'" target="_blank" rel="noopener">'+lab+'</a>':lab;
+              }).join(' ・ ')+'</div>':'')
+            +'</div>';
+        });
+        return hh;
+      })():'')
+  +(sx.fixedVars&&sx.fixedVars.length?(function(){
+        var hh='<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:10px 0 4px">固定した変数 — 宣言と根拠（無宣言の固定は幅を潰すため明示）</div>';
+        hh+='<table class="cbtable">';
+        sx.fixedVars.forEach(function(f){ hh+='<tr><td><b>'+esc(f.item)+'</b><br><span style="color:var(--mute)">理由: '+esc(f.why)+' ／ 検証: '+esc(f.verify)+'</span></td></tr>'; });
+        hh+='</table>';
+        return hh;
+      })():'');
+  if(sx.blend&&(sx.blend.items||[]).length){
+    h+='<div style="border:1px solid var(--lineS);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:11.5px;line-height:1.8">'
+      +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:5px">王道ブレンドの配分 — サーバの機械計算（'+esc(sx.blend.derivedAt||'')+'）。比率: '
+      +(sx.blend.ratios||[]).map(function(r){return esc(r.name)+' <b>'+r.pct+'%</b>';}).join(' ／ ')+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px">'
+      +(sx.blend.items||[]).map(function(it){
+        return '<span style="font-size:10.5px;border-radius:999px;padding:3px 10px;border:1px solid '+(it.sigRisk?'#9C3232':'var(--line)')+';background:var(--surface)" title="'+esc(it.note||'')+'">'
+          +esc(it.attr.split(' ')[0])+' '+(it.level===null?'自由域':esc(it.level))+' <span style="color:var(--mute)">← '+esc(it.axisName)+'</span>'
+          +(it.sigRisk?' <b style="color:#9C3232">⚠署名帯:'+esc(String(it.sigRisk).replace(/^[^ ]+ /,''))+'→再実装</b>':'')+'</span>';
+      }).join('')
+      +'</div>'
+      +(sx.blend.mimicryNote?'<div style="margin-top:5px;font-size:10.5px;color:#9C3232">'+esc(sx.blend.mimicryNote)+'</div>':'')
+      +'<div style="margin-top:5px;font-size:10.5px;color:var(--mute)">床（'+(sx.blend.floor||[]).map(function(f){return esc(f.attr.split(" ")[0]);}).join('・')+'）は全軸共通で維持。⚠＝署名帯または配分ベクトルの接近検査に接触した属性で、設計は水準を文字どおり採らず隣接水準か二次変数で再実装している（decisions参照）。最終採用値は下の「棚での立ち位置」が事実。</div>'
+      +'</div>';
+  }
+  if(sx.signature){
+    var sg=sx.signature;
+    if(sg.missing){
+      h+='<div style="border:1px dashed var(--lineS);border-radius:12px;padding:8px 12px;margin-top:8px;font-size:11px;color:#a15c00">署名未宣言 — この版は王道文法のみで立っている（＝PBの文法）。派生時に署名の宣言を指示するか、方向を作り直すと固有性が記録されます。</div>';
+    }else if(sg.attrId){
+      var oc=sg.occupancy, vcol=oc?(oc.verdict==='空白'?'var(--accInk)':(oc.verdict==='少数派'?'#a15c00':'#9C3232')):'var(--mute)';
+      h+='<div style="border:1px solid var(--lineS);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:11.5px;line-height:1.8">'
+        +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:4px">署名 — この方向が新たに取りに行く固有性（王道文法＋署名＝ブランド／署名なし＝PB）'+(sg.inherited?' <span style="font-weight:400;color:var(--mute)">親版から継承</span>':'')+'</div>'
+        +'<div><b>'+esc(sg.attrId)+' ＝ '+esc(sg.level||'')+'</b>'
+        +(oc?' <span style="font-size:10px;border:1px solid '+vcol+';color:'+vcol+';border-radius:999px;padding:1px 8px;font-weight:700">'+esc(oc.verdict)+'（棚の占有 '+oc.count+'/'+oc.of+'缶'+(oc.holders&&oc.holders.length?': '+oc.holders.map(esc).join('・'):'')+'）</span>':'')
+        +'</div>'
+        +(sg.sub?'<div style="margin-top:2px">占有する知覚: '+esc(sg.sub)+'</div>':'')
+        +(sg.basis?'<div style="color:var(--mute);margin-top:2px;font-size:10.5px">根拠: '+esc(sg.basis)+'</div>':'')
+        +(oc&&oc.verdict==='共通文法'?'<div style="color:#9C3232;margin-top:3px;font-size:10.5px">⚠ この水準は棚の共通文法（過半級の占有）——署名として機能しない。空白か少数派の水準への再宣言を推奨。</div>':'')
+        +(oc&&oc.verdict==='少数派'&&oc.holders&&oc.holders.length?'<div style="color:var(--mute);margin-top:3px;font-size:10.5px">先客あり——sub の知覚規定が先客と明確に異なることが署名成立の条件。</div>':'')
+        +'</div>';
+    }
+  }
+  if(sx.shelfCheck&&(sx.shelfCheck.attrs||[]).length){
+    var sc=sx.shelfCheck, nr=sc.nearest;
+    var nrRisk=nr&&nr.match>=6;
+    h+='<div style="border:1px solid var(--lineS);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:11.5px;line-height:1.8">'
+      +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:5px">棚での立ち位置 — この案がどこで王道に立ち、どこで破るか（機械照合・'+esc(sc.checkedAt||'')+'）</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px">'
+      +sc.attrs.map(function(a){
+        return '<span style="font-size:10.5px;border-radius:999px;padding:3px 10px;border:1px solid '+(a.follows?'var(--line)':'var(--acc)')+';'+(a.follows?'color:var(--ink2);background:var(--surface)':'color:var(--accInk);background:var(--accBg,transparent);font-weight:700')+'" title="'+esc(a.name)+'">'
+          +esc(a.id)+' '+esc(a.ours)+(a.follows?'':(a.modal!=null?' <span style="font-weight:400;color:var(--mute)">（王道: '+esc(a.modal)+'）</span>':''))+'</span>';
+      }).join('')
+      +'</div>'
+      +'<div style="margin-top:6px;font-size:11px">枠線つき＝王道コード（最頻値）から意図的に逸れている属性。'
+      +(nr?'<br>最近接の実在銘柄: <b'+(nrRisk?' style="color:var(--warnInk,#a15c00)"':'')+'>'+esc(nr.brand)+'（'+nr.match+'/'+nr.total+'属性一致）</b>'+(nrRisk?' — 接近注意。識別署名との重なりは自動検査済み':' — 十分な距離'):'')
+      +'</div></div>';
+  }
+  if(sx.ledger&&((sx.ledger.breaks||[]).length||(sx.ledger.keeps||[]).length)){
+    h+='<div style="border:1px solid var(--lineS);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:11.5px;line-height:1.7">'
+      +'<div style="font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:4px">台帳 — 棚コードとの関係</div>'
+      +((sx.ledger.keeps||[]).length?'<div>守る: '+esc(sx.ledger.keeps.map(function(k){return k.code;}).join('・'))+'</div>':'')
+      +(sx.ledger.breaks||[]).map(function(b){return '<div style="margin-top:4px">破る: <b>'+esc(b.code)+'</b>'+cbShareHTML(b.code)+'<br><span style="color:var(--ink2)">仮説: '+esc(b.hypothesis||'')+'</span><br><span style="color:var(--mute)">検証: '+esc(b.measure||'')+'</span></div>';}).join('')
+      +(sx.ledger.note?'<div style="color:var(--mute);margin-top:4px;font-size:10.5px">'+esc(sx.ledger.note)+'</div>':'')
+      +'</div>';
+  }
+  if(v.origin&&v.origin.verdict&&v.origin.verdict.status==='warn'){
+    h+='<div class="verdict warn" style="margin-top:8px">この版の指示は壁に接触したため、以下の代替を採用して設計されています。</div>';
+    (v.origin.verdict.warnings||[]).forEach(function(wn){
+      h+='<div class="warnitem"><div class="ww">'+esc(wn.wall)+'</div><div>'+esc(wn.why||'')+'</div>'+(wn.alternative?'<div class="wa">代替: '+esc(wn.alternative)+'</div>':'')+'</div>';
+    });
+  }
+  if(sx.glance)h+='<div class="glancebox" style="margin-top:8px">ひと目の違い: '+esc(sx.glance)+'</div>';
+  h+='<div class="cols" style="margin-top:6px"><div>';
+  h+='<div class="sec-lb">表現の決定と根拠</div>';
+  (sx.decisions||[]).forEach(function(dec){
+    h+='<div class="decision"><div class="d">'+esc(dec.decision)+'</div>'
+      +'<div class="s"><b>狙う知覚:</b> '+esc(dec.seek)+'</div>'
+      +'<div class="e">'+esc(dec.evidence)+'</div></div>';
+  });
+  h+='</div><div>';
+  if(sx.gates&&sx.gates.length){
+    h+='<div class="sec-lb">事前チェック</div><div class="gates">';
+    var GATE_LB={G1:'戦略との整合',G2:'健康・倫理の衝突なし',G3:'広告規制・自主基準',G4:'他ブランドとの混線なし',G5:'初見で伝わるか',G6:'調査で検証できるか'};
+    sx.gates.forEach(function(g){
+      h+='<div class="gr"><span class="gid">'+esc(g.id)+' '+esc(GATE_LB[g.id]||'')+'</span><span class="vd '+(g.result==='pass'?'ok':(g.result==='fail'?'ng':'cond'))+'">'+esc(g.result)+'</span><span>'+esc(g.note||'')+'</span></div>';
+    });
+    h+='</div>';
+  }
+  if(sx.measurement)h+='<div class="sec-lb">選んだ場合に調査で測ること</div><div class="measure">'+esc(sx.measurement)+'</div>';
+  if(sx.falsify)h+='<div class="falsify">反証条件: '+esc(sx.falsify)+'</div>';
+  var tk=sx.system||{};
+  h+='<div class="sec-lb">デザインシステム</div>';
+  if(tk.palette&&tk.palette.length)h+='<div class="palette" style="margin-bottom:8px">'+tk.palette.map(function(c){return '<span class="sw"><i style="background:'+esc(c.hex)+'"></i>'+esc(c.hex)+' '+esc(c.name||'')+'</span>';}).join('')+'</div>';
+  [['図像',tk.motif],['書体',tk.typography],['構図',tk.composition],['仕上げ',tk.finish],['トーン',tk.tone]].forEach(function(kv){
+    if(kv[1])h+='<div class="tokrow"><span class="k">'+kv[0]+'</span><span>'+esc(kv[1])+'</span></div>';
+  });
+  h+='<div class="sec-lb origin">生成の記録</div><div class="origin">';
+  TYPES.forEach(function(t){
+    if(sx.prompts&&sx.prompts[t.k])h+='<details style="margin-bottom:6px"><summary>'+esc(t.lb)+'の画像プロンプト</summary><div class="promptbox" style="margin-top:6px">'+esc(sx.prompts[t.k])+'</div></details>';
+  });
+  if(v.origin&&(v.origin.matched||[]).length){
+    h+='<details><summary>この版の設計時に引用された知識（'+v.origin.matched.length+'件）</summary><div style="margin-top:6px">'
+      +v.origin.matched.map(function(m){return '<div class="match"><span class="msrc">'+esc(m.source)+'</span><div class="mq">'+esc(m.quote)+'</div>'+(m.relevance?'<div class="mr">'+esc(m.relevance)+'</div>':'')+'</div>';}).join('')+'</div></details>';
+  }
+  h+='</div>';
+  h+='</div></div>';
+  h+='<div class="notewrap"><div style="font-size:11px;color:var(--mute)">気づきメモ（この方向を見て湧いた仮説。保存すると全員に共有）</div>'
+    +'<textarea id="drNote">'+esc(d.note||'')+'</textarea>'
+    +'<div class="foot"><span class="saved" id="drNoteSaved"></span><button class="save" onclick="Ops.saveNote(\''+d.id+'\')">保存</button></div></div>';
+  h+='</div>';
+  return h;
+}
+
+/* ---------- 行内の操作 ---------- */
+var Ops={
+  async cyclePhase(dirId){
+    var d=dirOf(dirId); if(!d)return;
+    var order=['direction','comp','research'];
+    var next=order[(order.indexOf(d.phase)+1)%order.length];
+    P=await gs('setPhase',dirId,next); render();
+  },
+  async setRep(dirId,verId){ P=await gs('setRepresentative',dirId,verId); render(); toast('代表版を更新しました'); },
+  async saveNote(dirId){
+    var v=(document.getElementById('drNote')||{}).value||'';
+    try{ await gs('saveNote',dirId,v); var d=dirOf(dirId); if(d)d.note=v;
+      var ok=document.getElementById('drNoteSaved'); if(ok){ok.textContent='保存しました';setTimeout(function(){ok.textContent='';},2200);} }
+    catch(e){ toast('メモの保存に失敗: '+(e.message||e),true); }
+  },
+  async delVer(dirId,verId){
+    if(!confirm('この版を削除しますか？（画像ファイルは残ります）'))return;
+    try{ P=await gs('deleteVersion',dirId,verId); View.open=null; Composer.parentVer=null; render(); }
+    catch(e){ toast(e.message||e,true); }
+  },
+  async delDir(dirId){
+    if(!confirm('この方向を丸ごと削除しますか？'))return;
+    P=await gs('deleteDirection',dirId); View.open=null; Composer.parentVer=null; render();
+  }
+};
+
+/* ---------- コンポーザー（行内「＋」から展開。送信→照合→即作成、壁の外だけ停止） ---------- */
+/* ================= デザインルールの箱 ================= */
+var Rules={
+  busy:false, analyzing:false, name:'', text:'', files:[], scope:'global', view:null, opened:{},
+  sync(){ var n=document.getElementById('sgName'), t=document.getElementById('sgText'); if(n)this.name=n.value; if(t)this.text=t.value; },
+  presets(){
+    var rows=[
+      {id:'guide-mainstream', name:'ビール王道／定番', badge:'自動導出', badgeNote:'棚の観察記録から常時計算・観察の更新に自動追随', desc:'売れ筋8缶の共通項（王道の顔）と、各銘柄をその銘柄だと分からせている目印。「王道／定番」指定時の基準であり、模倣検知（どこかの銘柄っぽくなっていないかの機械検査）の照合元。'},
+      {id:'guide-beerness', name:'ビールらしさの原則', badge:'資料', badgeNote:'サントリーデザイン部作成資料を構造化', desc:'ビールらしさの意味体系（物性・舶来・作り手の3系統）、4つのポイント、代表レイアウト4型。全設計の導出とレイアウト宣言の基準。'}
+    ];
+    // 王道の性格軸: 目録の archetypes から動的に行を作る（プロファイルは展開時にサーバ導出を取得）
+    var cb=P.audit&&P.audit.codebook;
+    ((cb&&cb.archetypes)||[]).forEach(function(a){
+      var ok=a.status==='approved';
+      rows.push({id:'guide-arch-'+a.id, name:'王道の性格軸: '+a.name,
+        badge:ok?'自動導出・承認済':'自動導出・承認待ち',
+        badgeNote:ok?'符号化表から常時計算。設計知識に接続中（承認 '+(a.approvedAt||'')+'）':'符号化表から常時計算。構成の承認前＝設計知識には未接続（承認は観察表ドロワーから）',
+        desc:(a.semantic||'')+' 構成: '+(a.members||[]).length+'缶。'+(ok?'':'「王道」指定の生成にはまだ影響しません。')});
+    });
+    return rows;
+  },
+  /* ---- 土台タブ: ビール共通のデザインルール ---- */
+  globalSectionHTML(){
+    var self=this;
+    var gGlobal=(P.styleGuides||[]).filter(function(g){return g.scope==='global';});
+    var h='<div style="font-size:11.5px;color:var(--ink2);line-height:1.7;margin-bottom:8px">崩すと「ビールに見えなくなる」規則。<b>すべてのコンセプトの設計生成（AIの設計判断）と画像生成（描画制約）に自動適用</b>される。特定コンセプトだけの決めごとは、ここではなく各コンセプトのページ（根拠04）に格納する。</div>';
+    this.presets().forEach(function(pg){ h+=self._ruleRow(pg.id, pg.name, pg.badge, pg.badgeNote, pg.desc, false); });
+    gGlobal.forEach(function(g){ h+=self._ruleRow(g.id, g.name, 'ユーザー定義', (g.origin&&g.origin.date)||'', g.definition||'', true); });
+    h+=this.formHTML('global');
+    return h;
+  },
+  /* ---- コンセプトページ上部「この開発の前提」パネル: このコンセプト専用の決めごと ---- */
+  conceptBodyHTML(){
+    var self=this;
+    var cpt=(P.concepts||[]).find(function(c){return c.id===P.activeConceptId;})||{name:''};
+    var gGlobalN=(P.styleGuides||[]).filter(function(g){return g.scope==='global';}).length + this.presets().length;
+    var gLocal=(P.styleGuides||[]).filter(function(g){return g.scope===P.activeConceptId;});
+    var h='<div class="pintro" style="margin-bottom:6px">与件資料の規則や、このコンセプトだけで守る様式の置き場。ここの規則は<b>このコンセプトの設計と画像にだけ</b>適用され、他へは漏れない。ビール全体の規則（'+gGlobalN+'件）は <a href="#" onclick="App.setView(\'base\');return false">🏛 土台</a>。迷ったら: 崩れたとき「ビールに見えなくなる」なら土台、「この商品らしくなくなる」ならここ。</div>';
+    if(gLocal.length) gLocal.forEach(function(g){ h+=self._ruleRow(g.id, g.name, 'ユーザー定義', (g.origin&&g.origin.date)||'', g.definition||'', true); });
+    else h+='<div style="font-size:11px;color:var(--mute);margin-bottom:4px">まだありません。</div>';
+    h+=this.formHTML('concept', cpt.name);
+    return h;
+  },
+  formHTML(scope, cptName){
+    var h='<div style="border-top:1px solid var(--lineS);margin-top:12px;padding-top:10px">'
+      +'<div style="font-size:11.5px;font-weight:700;margin-bottom:6px">＋ ルールを追加'
+      +'<span style="font-weight:400;color:var(--mute)">（格納先: '+(scope==='global'?'ビール共通 — 全コンセプトに適用':'このコンセプト「'+esc(cptName||'')+'」のみ')+'）</span></div>'
+      +'<div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">'
+      +'<input id="sgName" value="'+esc(this.name)+'" oninput="Rules.sync()" placeholder="ルール名" style="flex:0 0 26%;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12px;outline:none;background:var(--surface)">'
+      +'<textarea id="sgText" oninput="Rules.sync()" rows="'+((this.text&&this.text.length>140)?6:2)+'" placeholder="定義文（何を必須にし、何を禁止するか。自然文でOK。資料を添付して「分析して整理」で自動起草もできます）" style="flex:1;min-width:240px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12px;outline:none;background:var(--surface);resize:vertical;font-family:inherit">'+esc(this.text)+'</textarea>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:7px;align-items:center;flex-wrap:wrap">'
+      +'<label class="tbtn" style="cursor:pointer">📎 資料を添付<input type="file" multiple accept="image/*,.pdf,.txt,.md,.csv" style="display:none" onchange="Rules.attach(this)"></label>'
+      +this.files.map(function(f,i){return '<span style="font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;background:var(--surface)">'+esc(f.name)+' <a href="#" style="color:var(--mute);text-decoration:none" onclick="Rules.detach('+i+');return false">×</a></span>';}).join('')
+      +'<button class="tbtn" onclick="Rules.analyze()" '+((this.analyzing||!this.files.length)?'disabled':'')+'>'+(this.analyzing?'分析中…':'🧪 分析して整理')+'</button>'
+      +'<span style="flex:1"></span>'
+      +'<button class="tbtn" onclick="Rules.add(\''+scope+'\')" '+(this.busy?'disabled':'')+' style="white-space:nowrap;font-weight:800">'+(this.busy?'格納中…':'ルールとして格納')+'</button>'
+      +'</div></div>';
+    return h;
+  },
+  _ruleRow(id, name, badge, badgeNote, desc, deletable){
+    var open=!!this.opened[id];
+    var h='<div style="border:1px solid var(--lineS);border-radius:10px;padding:8px 12px;margin-bottom:5px;font-size:11.5px;line-height:1.7">'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<b>'+esc(name)+'</b>'
+      +'<span style="font-size:9.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--ink2)" title="'+esc(badgeNote)+'">'+esc(badge)+'</span>'
+      +'<span style="flex:1"></span>'
+      +'<a href="#" style="color:var(--accInk);font-size:11px" onclick="Rules.toggle(\''+id+'\');return false">'+(open?'閉じる ▴':'中身を見る ▾')+'</a>'
+      +(deletable?' <a href="#" style="color:var(--mute);font-size:11px" onclick="Rules.del(\''+id+'\');return false">削除</a>':'')
+      +'</div>'
+      +(desc?'<div style="color:var(--mute);margin-top:2px">'+esc(desc)+'</div>':'')
+      +(open?this._guideBody(id):'')
+      +'</div>';
+    return h;
+  },
+  async toggle(id){
+    this.sync();
+    if(this.opened[id]){ delete this.opened[id]; render(); return; }
+    if((P.styleGuides||[]).some(function(x){return x.id===id;})){ this.opened[id]=true; render(); return; }
+    if(!this.view){
+      try{ this.view=await gs('getStyleGuidesView'); }
+      catch(e){ toast('規範の取得に失敗: '+(e.message||e),true); return; }
+    }
+    this.opened[id]=true; render();
+  },
+  _guideBody(id){
+    var g=(P.styleGuides||[]).find(function(x){return x.id===id;})
+      ||(this.view&&(this.view.guides||[]).find(function(x){return x.id===id;}))
+      ||(this.view&&(this.view.archetypeGuides||[]).find(function(x){return x.id===id;}));
+    if(!g)return '<div style="font-size:11px;color:var(--mute);margin-top:6px">読み込み中…</div>';
+    var h='<div style="border-top:1px dashed var(--lineS);margin-top:7px;padding-top:7px;font-size:11.5px;line-height:1.75">';
+    if(g.definition)h+='<div style="margin-bottom:6px">'+esc(g.definition)+'</div>';
+    if(g.membersInfo){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:3px">構成銘柄（符号化 '+g.membersInfo.coded+'/'+g.membersInfo.total+'）</div>'
+        +'<div style="margin-bottom:5px">'+g.membersInfo.names.map(esc).join('・')+'</div>';
+    }
+    if(g.floor&&g.floor.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:3px">床 — 全性格軸で共有する属性（対象8缶の占有'+(P.audit&&P.audit.codebook?Math.round((P.audit.codebook.kThreshold||0.7)*100):70)+'%以上＝崩すとビールに見えない）</div><table class="cbtable">';
+      g.floor.forEach(function(c){ h+='<tr><td style="white-space:nowrap">'+esc(c.attr)+'</td><td><b>'+esc(c.level)+'</b> <span style="color:var(--mute)">'+esc(c.share)+'</span></td></tr>'; });
+      h+='</table>';
+    }
+    if(g.profile&&g.profile.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">性格プロファイル — この軸が拮抗属性で採る水準（構成銘柄の条件付き最頻値）</div><table class="cbtable">';
+      g.profile.forEach(function(c){
+        h+='<tr><td style="white-space:nowrap">'+esc(c.attr)+'</td><td>'
+          +(c.level===null?'<span style="color:var(--mute)">（'+esc(c.note||'符号化待ち')+'）</span>':'<b>'+esc(c.level)+'</b> <span style="color:var(--mute)">'+esc(c.share||'')+'</span>')
+          +(c.tieWith?' <span style="color:var(--mute);font-size:10px">拮抗: '+c.tieWith.map(esc).join('・')+'＝軸内の自由域</span>':'')
+          +(c.sigRisk?'<br><span style="color:#9C3232;font-size:10px">⚠ 署名帯: この水準は'+esc(c.sigRisk)+'の識別署名と同値（1缶の票のみ）。そのまま採ると複製に接近——隣接水準か二次変数で再実装</span>':'')
+          +'</td></tr>';
+      });
+      h+='</table>';
+      if(g.thin)h+='<div style="color:#a15c00;font-size:10.5px;margin-top:3px">構成の符号化が'+g.membersInfo.coded+'缶＝解像度が低い状態。参照缶を符号化すると規定が安定します。</div>';
+    }
+    if(g.semantic&&g.membersInfo){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">意味系統（らしさ3系統との接続）</div><div>'+esc(g.semantic)+'</div>';
+    }
+    if(g.codes&&g.codes.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:3px">王道コード（各属性の最頻値と占有）</div><table class="cbtable">';
+      g.codes.forEach(function(c){ h+='<tr><td style="white-space:nowrap">'+esc(c.attr)+'</td><td><b>'+esc(c.level==null?'（符号化待ち）':c.level)+'</b> <span style="color:var(--mute)">'+esc(c.share)+'</span></td></tr>'; });
+      h+='</table>';
+    }
+    if(g.signatures&&g.signatures.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">各銘柄の識別署名（この組み合わせの再現＝模倣として検知）</div>';
+      g.signatures.forEach(function(s){
+        var d=Object.keys(s.distinctive||{}).map(function(k){return k+'='+s.distinctive[k];}).join('・');
+        h+='<div>・<b>'+esc(s.brand)+'</b>: '+(d?esc(d):'<span style="color:var(--mute)">（最頻値と全一致＝王道の中心）</span>')+'</div>';
+      });
+    }
+    if(g.points&&g.points.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">ビールらしさを感じさせる4つのポイント</div>';
+      g.points.forEach(function(x,i){ h+='<div>'+(i+1)+'. '+esc(x)+'</div>'; });
+    }
+    if(g.layouts&&g.layouts.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">代表レイアウト4型</div>';
+      g.layouts.forEach(function(x){ h+='<div>・<b>'+esc(x.type)+'</b> — '+esc(x.spec)+'</div>'; });
+    }
+    if(g.rules&&g.rules.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">設計への適用規則</div>';
+      g.rules.forEach(function(x){ h+='<div>・'+esc(x)+'</div>'; });
+    }
+    if(g.attrs&&Object.keys(g.attrs).length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">属性の規定（コード目録スキーマ）</div>';
+      Object.keys(g.attrs).forEach(function(k){ h+='<div>・'+esc(k)+': '+esc(g.attrs[k])+'</div>'; });
+    }
+    if(g.en&&g.en.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">画像生成へ注入される制約（英語）</div>';
+      g.en.forEach(function(x){ h+='<div style="font-family:var(--mono);font-size:10.5px">・'+esc(x)+'</div>'; });
+    }
+    if(g.cautions&&g.cautions.length){
+      h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin:7px 0 3px">誤用パターン</div>';
+      g.cautions.forEach(function(x){ h+='<div>・'+esc(x)+'</div>'; });
+    }
+    if(g.origin){
+      h+='<div style="color:var(--mute);margin-top:5px;font-size:10.5px">出自: '+esc(g.origin.method||'')+' '+esc(g.origin.date||'')
+        +((g.origin.assets||[]).length?' ／ 元資料: '+esc(g.origin.assets.join('、')):'')+'</div>';
+    } else if(g.source){
+      h+='<div style="color:var(--mute);margin-top:5px;font-size:10.5px">出典: '+esc(g.source)+'</div>';
+    }
+    h+='</div>';
+    return h;
+  },
+  attach(input){
+    var self=this, list=[].slice.call(input.files||[]); input.value='';
+    Promise.all(list.map(function(f){ return self._read(f); })).then(function(rs){
+      rs.forEach(function(r){ if(r) self.files.push(r); });
+      var tot=self.files.reduce(function(a,f){ return a+f.b64.length; },0);
+      if(tot>8000000) toast('添付の合計が大きすぎます（合計およそ6MBまで）。ファイルを減らすか縮小してください',true);
+      render();
+    });
+  },
+  detach(i){ this.sync(); this.files.splice(i,1); render(); },
+  _read(f){
+    return new Promise(function(res){
+      var mime=f.type||'';
+      if(/^image\//.test(mime)){
+        var fr=new FileReader();
+        fr.onload=function(){ var img=new Image(); img.onload=function(){
+          var MAX=1400, sc=Math.min(1,MAX/Math.max(img.width,img.height));
+          var cv=document.createElement('canvas'); cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          res({name:f.name, mime:'image/png', b64:cv.toDataURL('image/png').split(',')[1]});
+        }; img.onerror=function(){ toast('画像の読み込みに失敗: '+f.name,true); res(null); }; img.src=fr.result; };
+        fr.readAsDataURL(f);
+      } else if(mime==='application/pdf'||/\.pdf$/i.test(f.name||'')){
+        if(f.size>4500000){ toast('PDFが大きすぎます（1ファイル4.5MBまで）: '+f.name,true); return res(null); }
+        var fr2=new FileReader();
+        fr2.onload=function(){ res({name:f.name, mime:'application/pdf', b64:String(fr2.result).split(',')[1]}); };
+        fr2.readAsDataURL(f);
+      } else if(/^text\//.test(mime)||/\.(txt|md|csv)$/i.test(f.name||'')){
+        var fr3=new FileReader();
+        fr3.onload=function(){ res({name:f.name, mime:'text/plain', b64:String(fr3.result).split(',')[1]}); };
+        fr3.readAsDataURL(f);
+      } else { toast('未対応の形式: '+f.name+'（画像・PDF・テキストに対応）',true); res(null); }
+    });
+  },
+  async analyze(){
+    if(this.analyzing||!this.files.length)return;
+    this.sync(); this.analyzing=true; render();
+    try{
+      var r=await gs('analyzeStyleAssets',{ files:this.files.map(function(f){ return {name:f.name, mime:f.mime, data:f.b64}; }), note:this.text });
+      if(!this.name&&r.name)this.name=r.name;
+      this.text=r.definition+(r.sources?'\n\n【出典メモ】'+r.sources:'');
+      this.analyzing=false; render();
+      toast('資料を整理しました。定義文と適用範囲を確認して「ルールとして格納」してください');
+    }catch(e){ this.analyzing=false; render(); toast('分析に失敗: '+(e.message||e),true); }
+  },
+  async add(scope){
+    this.sync();
+    var name=this.name.trim(), text=this.text.trim();
+    if(!name||!text){ toast('ルール名と定義文を入力してください',true); return; }
+    this.busy=true; render();
+    try{
+      var r=await gs('defineStyleGuide',{name:name, instruction:text,
+        conceptId:(scope==='concept'?P.activeConceptId:null),
+        assets:this.files.map(function(f){ return f.name; })});
+      P=r.project; this.busy=false; this.name=''; this.text=''; this.files=[]; this.view=null; render();
+      toast('ルール「'+r.guide.name+'」を格納しました（'+(r.guide.scope==='global'?'ビール共通 — 全コンセプトに適用':'このコンセプト専用')+'）。以後の設計と画像制約に自動適用されます');
+    }catch(e){ this.busy=false; render(); toast('格納に失敗: '+(e.message||e),true); }
+  },
+  async del(id){
+    if(!window.confirm('このルールを削除します。以後の設計には適用されなくなります。よろしいですか？'))return;
+    try{ P=await gs('deleteStyleGuide',{id:id}); this.view=null; render(); toast('削除しました'); }
+    catch(e){ toast('削除に失敗: '+(e.message||e),true); }
+  }
+};
+/* ================= 内部リサーチランナー =================
+サーバの researchPlan → researchExecute（質問ごと）→ researchIntegrate を順に呼ぶ。
+各段を1リクエストに分けているのはリクエストのタイムアウト回避と進捗可視化のため。 */
+var Research={
+  busy:false, prog:null,
+  _prog(t){
+    this.prog=t;
+    var el=document.getElementById('rsProgT');
+    if(el){ el.textContent=t||''; }
+    else if(t){ toast(t); } // gapbox外（初期棚卸し等）はトーストで進捗表示
+  },
+  async runGap(){
+    var g=Composer.gap; if(!g||this.busy)return;
+    await this._run({conceptId:P.activeConceptId, briefTitle:g.briefTitle||'追加リサーチ', missing:g.missing||'', briefText:g.briefText||''}, true);
+  },
+  async runIntake(){
+    if(this.busy)return;
+    this.busy=true; this._prog('棚卸しの調査依頼を起案中…'); render();
+    try{
+      var b=await gs('conceptIntakeBrief',{conceptId:P.activeConceptId});
+      await this._run({conceptId:P.activeConceptId, briefTitle:b.briefTitle, missing:b.missing, briefText:b.briefText}, false, true);
+    }catch(e){ this.busy=false; this._prog(null); toast('棚卸し依頼の起案に失敗: '+(e.message||e),true); render(); }
+  },
+  async _run(brief, isGap, alreadyBusy){
+    if(this.busy&&!isGap&&!alreadyBusy)return;
+    this.busy=true; if(isGap){ render(); }
+    try{
+      this._prog('調査計画を作成中…');
+      var plan=await gs('researchPlan',{conceptId:brief.conceptId, briefTitle:brief.briefTitle, missing:brief.missing, briefText:brief.briefText});
+      var results=[], failed=0;
+      for(var i=0;i<plan.questions.length;i++){
+        var q=plan.questions[i];
+        this._prog('調査 '+(i+1)+'/'+plan.questions.length+'（'+(q.type||'')+'）: '+String(q.q||'').slice(0,40)+'…');
+        try{
+          var r=await gs('researchExecute',{conceptId:brief.conceptId, question:q});
+          results.push({question:q, summary:r.summary, findings:r.findings, implication:r.implication, confidence:r.confidence, unverified:r.unverified});
+        }catch(e){ failed++; results.push({question:q, summary:'調査失敗: '+(e.message||e), findings:[], failed:true}); }
+      }
+      if(results.length&&failed===results.length) throw new Error('全ての調査が失敗しました（web検索の接続を確認してください）');
+      this._prog('結果を監査台帳に統合中…');
+      var out=await gs('researchIntegrate',{conceptId:brief.conceptId, brief:brief, results:results});
+      P=out.project;
+      this.busy=false; this._prog(null);
+      if(isGap){ Composer.gap=null; Composer.gapDone=out; }
+      render();
+      var a=out.added||{};
+      toast('内部リサーチ完了: 記号監査+'+(a.symbols||0)+' / 借用元+'+(a.sources||0)+' / 禁止+'+(a.prohibitions||0)+' / 語彙+'+(a.vocab||0)+' / 発見+'+(a.findings||0)+(failed?'（調査'+failed+'件は失敗）':''));
+      // gap起点なら手動再送を挟まず、監査済みの知識でそのまま設計を再実行する
+      if(isGap && Composer.anchor && document.getElementById('cpText') && ((document.getElementById('cpText').value||Composer.text||'').trim())){
+        glog('内部リサーチ完了 → 同じ指示で設計を自動再実行');
+        Composer.send();
+      }
+    }catch(e){
+      this.busy=false; this._prog(null);
+      toast('内部リサーチに失敗: '+(e.message||e),true);
+      render();
+    }
+  }
+};
+var Composer={
+  anchor:null,      // {type:'derive',dirId} | {type:'new'}
+  parentVer:null, text:'', img:null, refId:null, gap:null, gapDone:null, busy:false, blend:null,
+  isFor(dirId){ return !!(this.anchor&&this.anchor.type==='derive'&&this.anchor.dirId===dirId); },
+  openDeriveFrom(dirId, verId){
+    this.anchor=null; this.openDerive(dirId);
+    this.parentVer=verId; render();
+    var el=document.getElementById('cpForm'); if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+  },
+  openDerive(dirId){
+    if(this.isFor(dirId)){ this.anchor=null; render(); return; } // 展開中の再クリック=閉じる
+    var d=dirOf(dirId); if(!d)return;
+    this.gap=null; this.gapDone=null;
+    this.anchor={type:'derive',dirId:dirId}; this.parentVer=d.repVersionId||d.versions[0].id;
+    this.text=''; this.img=null; this.refId=null; this.gap=null; this.gapDone=null; this.blend=null; render();
+    var el=document.getElementById('cpForm'); if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+    var ta=document.getElementById('cpText'); if(ta)ta.focus();
+  },
+  openNew(){
+    this.anchor={type:'new'}; this.parentVer=null;
+    this.text=''; this.img=null; this.refId=null; this.gap=null; this.gapDone=null; this.blend=null; render();
+    var el=document.getElementById('cpForm'); if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});
+    var ta=document.getElementById('cpText'); if(ta)ta.focus();
+  },
+  close(){ this.anchor=null; this.gap=null; this.gapDone=null; this.img=null; this.refId=null; this.blend=null; render(); },
+  html(standalone){
+    if(!this.anchor)return '';
+    var isNew=this.anchor.type==='new';
+    var d=isNew?null:dirOf(this.anchor.dirId);
+    var ref=this.refId?refOf(this.refId):null;
+    var self=this;
+    var h='<div class="'+(standalone?'':'cpanel')+'" id="cpForm">';
+    var _rgN=(P.styleGuides||[]).filter(function(g){return g.scope==='global';}).length+2;
+    var _rlN=(P.styleGuides||[]).filter(function(g){return g.scope===P.activeConceptId;}).length;
+    h+='<div style="font-size:10.5px;color:var(--mute);margin-bottom:6px">この生成に適用: ビール共通ルール'+_rgN+'件＋専用の決めごと'+_rlN+'件（自動）／生成後に王道照合＋模倣検知 → 結果は設計書「棚での立ち位置」へ</div>';
+    h+='<div class="cph"><span class="t">'+(isNew?'新しい方向を追加':'派生を作る — '+esc(d.name))+'</span>'
+      +(!isNew?'<select class="refsel" style="width:auto" id="cpParent" onchange="Composer.parentVer=this.value">'
+        +d.versions.map(function(v){return '<option value="'+v.id+'"'+(self.parentVer===v.id?' selected':'')+'>派生元: '+esc(v.label)+'</option>';}).join('')+'</select>':'')
+      +'<span style="flex:1"></span><button class="tbtn" onclick="Composer.close()">閉じる</button></div>';
+    h+='<div class="row">'
+      +'<textarea id="cpText" placeholder="'+(isNew?'例: 祝祭・ハレの日の切り口も見たい':'例: もっと格を上げたい。金は増やさずに。')+'">'+esc(this.text||'')+'</textarea>'
+      +'<label class="attbtn'+(this.img?' has':'')+'" title="画像を添付すると、まず視覚変数に言語化されます">'+(this.img?esc(this.img.name)+' ✓':'📎')
+      +'<input type="file" accept="image/*" style="display:none" onchange="Composer.pick(this)"></label>'
+      +'<button class="sendbtn" id="cpSend" '+(this.busy?'disabled style="opacity:.55;cursor:not-allowed"':'')+' onclick="Composer.send()">'+(this.busy?'⚙ 設計を導出中…':(this.img&&!ref?'言語化する':'生成する'))+'</button></div>';
+    h+='<div class="sugg">'+(P.dictionary||[]).slice(0,6).map(function(t){return '<button onclick="Composer.suggIns(this)">'+esc(t.term)+'</button>';}).join('')
+      +((P.refs||[]).length?'<select class="refsel" style="width:auto;margin-left:auto" id="cpRefSel" onchange="Composer.useLib(this)"><option value="">過去に分解した缶から借用…</option>'
+        +(P.refs||[]).map(function(r){return '<option value="'+r.id+'"'+(self.refId===r.id?' selected':'')+'>'+esc(r.name)+'</option>';}).join('')+'</select>':'')
+      +'</div>';
+    // 王道ブレンド: 承認済みの性格軸のみ・25%刻み。配分の計算はサーバ（決定論）＝結果は設計書「王道ブレンドの配分」に焼き込まれる
+    var _arcsA=((P.audit&&P.audit.codebook&&P.audit.codebook.archetypes)||[]).filter(function(a){return a.status==='approved';});
+    if(_arcsA.length){
+      var bl=this.blend||{};
+      var _bsum=_arcsA.reduce(function(s,a){return s+(bl[a.id]||0);},0);
+      h+='<div class="dp-sub" style="display:flex;align-items:center;gap:8px">王道ブレンド（任意・25%刻み）'
+        +'<span style="font-weight:400;color:var(--mute)">床は維持したまま、拮抗属性を軸の比率で機械配分。一次知覚（色相→図像）は比率の大きい軸が取る</span>'
+        +(_bsum?'<span style="margin-left:auto;font-size:10.5px;color:var(--ink2)">合計 '+_bsum+'%'+(_bsum!==100?'（送信時に正規化）':'')+' <a href="#" style="color:var(--mute)" onclick="Composer.blendClear();return false">クリア</a></span>':'')
+        +'</div>';
+      h+='<div id="cpBlend" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px">';
+      _arcsA.forEach(function(a){
+        var v=bl[a.id]||0;
+        h+='<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;border:1px solid '+(v?'var(--accInk)':'var(--line)')+';border-radius:999px;padding:3px 6px 3px 11px;background:var(--surface)'+(v?';font-weight:700':'')+'">'
+          +esc(a.name.replace(/の王道$/,''))
+          +'<button class="tbtn" style="padding:0 7px;min-width:0" onclick="Composer.blendStep(\''+a.id+'\',-25)">−</button>'
+          +'<b style="min-width:34px;text-align:center">'+v+'%</b>'
+          +'<button class="tbtn" style="padding:0 7px;min-width:0" onclick="Composer.blendStep(\''+a.id+'\',25)">＋</button>'
+          +'</span>';
+      });
+      h+='</div>';
+    }
+    if(_arcsA.length){
+      h+='<div id="cpAxisHint" style="display:none;border:1px dashed var(--accInk);border-radius:10px;padding:7px 11px;margin-bottom:6px;font-size:11px;line-height:1.7;background:var(--surface)">'
+        +'<b id="cpAxisHintT"></b> テキストの派生は<b>同一命題内の小さな移動</b>（±1水準）です——性格の組み替えには構造的に届きません。軸ごと組み替えるなら王道ブレンドで指定すると、床を維持したまま拮抗属性が再導出されます。'
+        +'<button class="tbtn" style="margin-left:8px" id="cpAxisHintBtn" onclick="Composer.axisPreset()">この軸を50%セット</button></div>';
+    }
+    if(this.img&&!ref){
+      h+='<div class="decomp"><div class="exp" style="margin-top:0">送信すると、この画像がまず視覚変数（V1支配色/V2素材感/V3図像/V4構図＋二次）に<b>言語化</b>されます。その後、借りたい変数を選んで派生を作ります。</div></div>';
+    }
+    if(ref){
+      var dc=ref.decomposition||{}, sec=dc.secondary||{};
+      h+='<div class="decomp"><div class="dh">言語化: '+esc(ref.name)+'</div><div class="dsum">'+esc(ref.summary||'')+'</div>'
+        +'<table>'
+        +['V1','V2','V3','V4'].map(function(k){return dc[k]?'<tr><td>'+k+'</td><td>'+esc(dc[k])+'</td></tr>':'';}).join('')
+        +Object.keys(sec).map(function(k){return sec[k]?'<tr><td>二次</td><td><b>'+esc(k)+':</b> '+esc(sec[k])+'</td></tr>':'';}).join('')
+        +'</table>'
+        +(ref.caution?'<div class="caution">'+esc(ref.caution)+'</div>':'')
+        +'<div class="exp">借りたい変数を選択。識別資産そのものは移植せず、その変数が達成している知覚を自ブランドの語彙で再実装します（G4混線チェック自動）。</div>'
+        +'<div class="varchips" id="cpVars">'
+        +['V1 支配色','V2 地の素材感','V3 図像','V4 構図'].concat(Object.keys(sec).map(function(k){return '二次 '+k;}))
+          .map(function(vn){return '<button class="vchip" data-v="'+esc(vn)+'" onclick="this.classList.toggle(\'on\')">'+esc(vn)+'</button>';}).join('')
+        +'</div></div>';
+    }
+    if(!isNew){
+      h+='<div class="dp-sub">パーツ指定（任意・クリックで 変更→維持→解除）</div>';
+      h+='<div class="lockchips" id="cpLocks">'+SYS_KEYS.map(function(k){return '<button class="vchip" data-k="'+k.k+'" data-mode="" onclick="Composer.cycleLock(this)">'+esc(k.lb)+'</button>';}).join('')+'</div>';
+    }
+    h+='<div class="pipeload'+(this.busy?' on':'')+'" id="cpLoad" style="display:'+(this.busy?'flex':'none')+'"><span class="dot"></span><span><b>AIが設計を導出しています</b>（解釈→知識照合→判定→設計書。模倣検知に接触すると自動矯正でもう1周）… 経過 <b id="cpLoadT">'+(this._t0?_elapsedS(this._t0):'0秒')+'</b><br>新方向は通常2〜6分、派生は1〜3分。完了後、新方向は標準案が先に立ち、下限・攻め端はバックグラウンドで追加されます（自動現像は標準案のみ。他の版は「生成する」か一括画像化で）。</span></div>';
+    if(this.gap){
+      h+='<div class="gapbox"><div class="gt2">この指示は、いまの知識の外です。憶測で作らず、先に調査で埋めます。</div>'
+        +'<div style="font-size:12px;font-weight:700;margin-top:6px">'+esc(this.gap.briefTitle||'追加リサーチ依頼')+'</div>'
+        +'<div style="font-size:11px;color:var(--mute)">欠けている知識: '+esc(this.gap.missing||'')+'</div>'
+        +'<pre>'+esc(this.gap.briefText||'')+'</pre>'
+        +(Research.busy
+          ?'<div id="rsProg" style="font-size:11.5px;color:var(--accInk);margin-top:8px;display:flex;align-items:center;gap:7px"><span class="dot"></span><span id="rsProgT">'+esc(Research.prog||'内部リサーチを実行中…')+'</span></div>'
+          :'<div style="display:flex;gap:8px;margin-top:9px;align-items:center">'
+            +'<button class="sendbtn" style="width:auto;padding:8px 16px" onclick="Research.runGap()">内部リサーチを実行</button>'
+            +'<button class="tbtn" onclick="Composer.saveBrief()">依頼書として保存（外部調査用）</button>'
+            +'<span style="font-size:10.5px;color:var(--mute)">計画→web接地調査→監査台帳へ統合（数分かかります）</span></div>')
+        +'</div>';
+    }
+    if(this.gapDone){
+      h+='<div class="gapbox" style="border-style:solid;border-color:var(--acc)">'
+        +'<div class="gt2" style="color:var(--accInk)">✅ 内部リサーチ完了 — 監査台帳に統合しました（'
+        +['symbols','sources','prohibitions','vocab','findings'].map(function(k){var lb={symbols:'記号監査',sources:'借用元',prohibitions:'禁止事項',vocab:'語彙規制',findings:'発見'}[k];return lb+' +'+(Composer.gapDone.added&&Composer.gapDone.added[k]||0);}).join(' / ')
+        +'）</div>'
+        +'<pre>'+esc(this.gapDone.digest||'')+'</pre>'
+        +((this.gapDone.unresolved&&this.gapDone.unresolved.length)?'<div style="font-size:11px;color:var(--mute)">未確認のまま残った事項: '+esc(this.gapDone.unresolved.join(' ／ '))+'</div>':'')
+        +'<div style="font-size:11.5px;margin-top:7px;font-weight:700">この知識を適用して、同じ指示で設計を自動再実行します（下の進捗パネル参照）。</div></div>';
+    }
+    h+='</div>';
+    return h;
+  },
+  afterRender(){
+    var ta=document.getElementById('cpText');
+    if(ta){ var self=this; ta.addEventListener('input',function(){ self.text=ta.value; self._axisHint(ta.value); }); this._axisHint(ta.value); }
+  },
+  // 辞書ルーティング: テキストが性格軸の語彙を含むとき、統制派生（±1移動）では届かない旨を提示しブレンドへ誘導
+  _AXIS_KW:[
+    {id:'arch-strong', re:/力強|強く|強い|強め|辛口|キレ|硬派|スーパードライ/},
+    {id:'arch-gentle', re:/優し|柔らか|やわらか|まろやか|穏やか|あたたか/},
+    {id:'arch-class',  re:/格を|品格|プレミアム|高級|風格|格上/},
+    {id:'arch-new',    re:/新し|今っぽ|モダン|フレッシュ|若々/}
+  ],
+  _hintAxis:null,
+  _axisHint(text){
+    var box=document.getElementById('cpAxisHint'); if(!box)return;
+    var arcs=((P.audit&&P.audit.codebook&&P.audit.codebook.archetypes)||[]).filter(function(a){return a.status==='approved';});
+    var hit=null;
+    if(text)this._AXIS_KW.some(function(k){ if(k.re.test(text)&&arcs.some(function(a){return a.id===k.id;})){hit=k.id;return true;} return false; });
+    // 既にその軸をブレンド指定済みなら誘導不要
+    if(hit&&this.blend&&this.blend[hit]){ hit=null; }
+    this._hintAxis=hit;
+    if(!hit){ box.style.display='none'; return; }
+    var a=arcs.filter(function(x){return x.id===hit;})[0];
+    var t=document.getElementById('cpAxisHintT'); if(t)t.textContent='「'+a.name+'」の語彙を検出。';
+    box.style.display='block';
+  },
+  axisPreset(){
+    if(!this._hintAxis)return;
+    this.text=(document.getElementById('cpText')||{}).value||this.text;
+    this.blend=this.blend||{}; this.blend[this._hintAxis]=50;
+    render();
+    toast('ブレンドに50%をセットしました。他の軸と組み合わせるか、比率を調整して送信してください');
+  },
+  blendStep(id,d){
+    this.text=(document.getElementById('cpText')||{}).value||this.text; // renderで消えないよう同期
+    this.blend=this.blend||{};
+    this.blend[id]=Math.max(0,Math.min(100,(this.blend[id]||0)+d));
+    if(!this.blend[id])delete this.blend[id];
+    if(!Object.keys(this.blend).length)this.blend=null;
+    render();
+  },
+  blendClear(){
+    this.text=(document.getElementById('cpText')||{}).value||this.text;
+    this.blend=null; render();
+  },
+  suggIns(btn){
+    var ta=document.getElementById('cpText'); if(!ta)return;
+    ta.value=(ta.value?ta.value.replace(/\s*$/,'')+'\n':'')+btn.textContent;
+    this.text=ta.value; ta.focus();
+  },
+  pick(input){
+    var f=input.files&&input.files[0]; if(!f)return;
+    var self=this;
+    var img=new Image(), fr=new FileReader();
+    fr.onload=function(){ img.onload=function(){
+      var MAX=1024, sc=Math.min(1,MAX/Math.max(img.width,img.height));
+      var cv=document.createElement('canvas'); cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      self.img={b64:cv.toDataURL('image/png').split(',')[1], mime:'image/png', name:f.name};
+      self.refId=null; render();
+    }; img.src=fr.result; };
+    fr.readAsDataURL(f);
+  },
+  useLib(sel){ this.refId=sel.value||null; this.img=null; this.text=(document.getElementById('cpText')||{}).value||this.text; render(); },
+  cycleLock(btn){
+    var m=btn.getAttribute('data-mode');
+    var next=m===''?'change':(m==='change'?'keep':'');
+    btn.setAttribute('data-mode',next);
+    btn.className='vchip'+(next==='change'?' on':(next==='keep'?' keep on':''));
+    var base=btn.textContent.replace(/^(変更:|維持:)/,'');
+    btn.textContent=(next==='change'?'変更:':(next==='keep'?'維持:':''))+base;
+  },
+  collect(){
+    var text=(document.getElementById('cpText')||{}).value||''; text=text.trim(); this.text=text;
+    var variables=[].slice.call(document.querySelectorAll('#cpVars .vchip.on')).map(function(b){return b.getAttribute('data-v');});
+    var keep=[],change=[];
+    [].slice.call(document.querySelectorAll('#cpLocks .vchip')).forEach(function(b){
+      var m=b.getAttribute('data-mode'); var k=b.getAttribute('data-k');
+      if(m==='keep')keep.push(k); if(m==='change')change.push(k);
+    });
+    var input={type:this.refId&&variables.length?'borrow':'text', text:text};
+    if(this.refId){input.refId=this.refId; input.variables=variables;}
+    if(keep.length||change.length)input.locks={keep:keep,change:change};
+    if(this.blend&&Object.keys(this.blend).length)input.blend=this.blend;
+    return input;
+  },
+  async send(){
+    if(this.busy)return;
+    var btn=document.getElementById('cpSend');
+    // フェーズ1: 添付画像の言語化
+    if(this.img&&!this.refId){
+      this.busy=true; if(btn){btn.disabled=true;btn.textContent='言語化中…';}
+      var ld=document.getElementById('cpLoad'); if(ld){ld.classList.add('on');ld.style.display='flex';}
+      try{
+        var name=this.img.name.replace(/\.[a-zA-Z0-9]+$/,'');
+        P=await gs('decomposeReference',{name:name, info:(document.getElementById('cpText')||{}).value||'', imageB64:this.img.b64, mime:this.img.mime});
+        var newest=(P.refs||[])[(P.refs||[]).length-1];
+        this.img=null; this.refId=newest?newest.id:null;
+        this.busy=false; render(); loadThumbs(); renderTop();
+        toast('画像を変数に言語化しました。借りたい変数を選んで「生成する」');
+      }catch(e){ this.busy=false; toast('言語化に失敗: '+(e.message||e),true); var b2=document.getElementById('cpSend'); if(b2){b2.disabled=false;b2.textContent='言語化する';} }
+      return;
+    }
+    var isNew=this.anchor&&this.anchor.type==='new';
+    var input=this.collect();
+    if(!input.text&&!input.refId&&!input.blend){ toast('指示・参照・王道ブレンドのいずれかは必要です',true); return; }
+    if(input.type!=='borrow'&&input.refId){ toast('借りる変数を1つ以上選んでください',true); return; }
+    this.busy=true; this.gap=null; this._t0=Date.now();
+    if(btn)btn.disabled=true;
+    var ld2=document.getElementById('cpLoad'); if(ld2){ld2.classList.add('on');ld2.style.display='flex';}
+    try{
+      var dirId=isNew?null:this.anchor.dirId;
+      var args=isNew?{conceptId:P.activeConceptId,input:input}:{directionId:dirId,versionId:this.parentVer,input:input};
+      var pr=await gs('directInput',args);
+      var st=pr.verdict&&pr.verdict.status;
+      if(st==='gap'){
+        this.gap=(pr.verdict&&pr.verdict.gap)||{missing:'',briefTitle:'追加リサーチ',briefText:''};
+        this.busy=false; render();
+        return;
+      }
+      if(!pr.spec)throw new Error('設計が返りませんでした');
+      // 即作成 → 画像の現像へ（判定・根拠は設計書に格納される）
+      var newVerId=null, newDirId=dirId, levels=1;
+      if(isNew){
+        var r=await gs('approveNewDirection',{proposal:pr});
+        P=r.project; newDirId=r.directionId;
+        var nd=dirOf(newDirId); newVerId=nd?(nd.repVersionId||nd.versions[0].id):null;
+        levels=nd?nd.versions.length:1;
+      } else {
+        var r2=await gs('approveProposal',{directionId:dirId,parentVersionId:this.parentVer,proposal:pr});
+        P=r2.project; newVerId=r2.versionId;
+      }
+      this.busy=false; this.anchor=null; this.gap=null; this.refId=null; this.text='';
+      render(); loadThumbs();
+      if(newDirId&&newVerId)Queue.pushVer(newDirId,newVerId);
+      var card=document.getElementById('vcard-'+newDirId+'-'+newVerId)||document.getElementById('drow-'+newDirId);
+      if(card&&card.scrollIntoView)card.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
+      toast(st==='warn'?'指示が壁に接触したため、代替案で作成しました（詳細は設計書）'
+        :(isNew?'新方向を作成しました。標準案の画像を現像し、下限・攻め端の2水準をバックグラウンドで設計中です（数分・完了時に左右へ追加）':'作成しました。画像を現像中'));
+      if(isNew&&levels<3){
+        glog('下限・攻め端の水準をバックグラウンドで設計中…');
+        gs('buildDirectionExecutions',{directionId:newDirId}).then(function(r){
+          P=r.project; render();
+          toast('水準を追加しました: '+r.made.join('・')+'（画像は各カードの「生成する」または「この行を一括画像化」）');
+        }).catch(function(e){
+          toast('下限・攻め端の構築に失敗: '+(e.message||e)+' — 標準案はそのまま使えます。方向名バーの「3水準を構築」から再実行できます',true);
+          glog('水準構築失敗: '+(e.message||e));
+        });
+      }
+    }catch(e){
+      this.busy=false; toast('作成に失敗: '+(e.message||e),true);
+      var b3=document.getElementById('cpSend'); if(b3)b3.disabled=false;
+      var l3=document.getElementById('cpLoad'); if(l3){l3.classList.remove('on');l3.style.display='none';} Composer._t0=null;
+    }
+  },
+  async saveBrief(){
+    if(!this.gap)return;
+    P=await gs('saveBrief',{title:this.gap.briefTitle||'追加リサーチ',text:this.gap.briefText||'',trigger:this.text||''});
+    render(); toast('調査依頼書を保存しました（「根拠」セクションの「調査依頼書」から開けます）');
+  }
+};
+
+/* ---------- 参照ライブラリ ---------- */
+var Panels={
+  open(id){document.getElementById('scrim').classList.add('on');document.getElementById(id).classList.add('on');},
+  closeAll(){document.getElementById('scrim').classList.remove('on');['briefs','codebook','tabmgr','assistant'].forEach(function(x){document.getElementById(x).classList.remove('on');});}
+};
+/* ---------- AIアシスタント（パネル）: 読み取り専用の案内役 ----------
+コンテキストはサーバの三層設計（自己記述定数＋生きた状態ダイジェスト＋任意のソース自己取得）。
+履歴はセッション内のみクライアント保持（直近12ターンをサーバへ送る・保存はしない）。 */
+var Assistant={
+  history:[], busy:false, withSource:false, _rendered:false,
+  SUGGEST:['裁定待ちセルって何をすればいい？','王道ブレンドの使い方を教えて','この版の署名判定「共通文法」ってどういう意味？','いまのプロジェクトの状況をまとめて','性格軸の承認を取り下げるとどうなる？'],
+  open(){ this.render(); Panels.open('assistant'); var el=document.getElementById('asInput'); if(el)setTimeout(function(){el.focus();},80); },
+  _fmt(t){
+    // esc→改行→**太字** の最小整形（それ以上のmarkdownは扱わない）
+    return esc(t).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+  },
+  render(){
+    var self=this;
+    var h='<button class="sop-close" onclick="Panels.closeAll()">✕</button>';
+    h+='<div class="dt-eyebrow">Assistant</div><div class="dt-title">AIアシスタント</div>';
+    h+='<div style="font-size:11px;line-height:1.7;color:var(--mute);margin-top:4px">このアプリの使い方・仕組み・いまのプロジェクト状態について答えます。<b>読み取り専用</b>——操作は代行せず、手順を案内します。会話はこのセッション内のみで保存されません。</div>';
+    h+='<div id="asLog" style="flex:1;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:8px;min-height:120px">';
+    if(!this.history.length){
+      h+='<div style="font-size:11px;color:var(--mute)">例えばこんな質問ができます:</div>';
+      this.SUGGEST.forEach(function(s){
+        h+='<button style="text-align:left;font-size:11.5px;border:1px dashed var(--line);border-radius:9px;padding:7px 11px;background:var(--surface);cursor:pointer" onclick="Assistant.ask(this.textContent)">'+esc(s)+'</button>';
+      });
+    }
+    this.history.forEach(function(m){
+      if(m.role==='user'){
+        h+='<div style="align-self:flex-end;max-width:85%;background:var(--ink);color:#fff;border-radius:12px 12px 3px 12px;padding:8px 12px;font-size:12px;line-height:1.7">'+self._fmt(m.content)+'</div>';
+      }else{
+        h+='<div style="align-self:flex-start;max-width:92%;border:1px solid var(--lineS);border-radius:12px 12px 12px 3px;padding:8px 12px;font-size:12px;line-height:1.8;background:var(--surface)">'+self._fmt(m.content)+(m.meta?'<div style="font-size:9.5px;color:var(--mute);margin-top:4px">'+esc(m.meta)+'</div>':'')+'</div>';
+      }
+    });
+    if(this.busy)h+='<div style="align-self:flex-start;font-size:11.5px;color:var(--accInk);display:flex;gap:6px;align-items:center"><span class="dot"></span>考えています…</div>';
+    h+='</div>';
+    h+='<div style="border-top:1px solid var(--lineS);padding-top:8px">'
+      +'<div style="display:flex;gap:6px;align-items:flex-end">'
+      +'<textarea id="asInput" rows="2" placeholder="質問を入力（Enterで送信・Shift+Enterで改行）" style="flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12px;background:var(--surface);outline:none;resize:none;line-height:1.6"></textarea>'
+      +'<button class="sendbtn" style="width:auto;padding:9px 15px" '+(this.busy?'disabled':'')+' onclick="Assistant.send()">送信</button></div>'
+      +'<label style="display:flex;gap:5px;align-items:center;font-size:10px;color:var(--mute);margin-top:5px;cursor:pointer" title="サーバ自身のソース（server/*.js と public/index.html）をコンテキストに含めて答えます">'
+      +'<input type="checkbox" '+(this.withSource?'checked':'')+' onchange="Assistant.withSource=this.checked" style="margin:0">実装コードも参照して答える（開発者向け・サーバのソースを送るため低速）</label>'
+      +(this.history.length?'<a href="#" style="font-size:10px;color:var(--mute)" onclick="Assistant.clear();return false">会話をクリア</a>':'')
+      +'</div>';
+    document.getElementById('assistantInner').innerHTML=h;
+    var log=document.getElementById('asLog'); if(log)log.scrollTop=log.scrollHeight;
+    var ta=document.getElementById('asInput');
+    if(ta&&!ta._bound){ ta._bound=true; ta.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); Assistant.send(); } }); }
+  },
+  ask(q){ this._pending=q; this.send(q); },
+  clear(){ this.history=[]; this.render(); },
+  async send(qOverride){
+    if(this.busy)return;
+    var ta=document.getElementById('asInput');
+    var q=(qOverride||((ta&&ta.value)||'')).trim();
+    if(!q)return;
+    if(ta)ta.value='';
+    this.history.push({role:'user',content:q});
+    this.busy=true; this.render();
+    try{
+      var msgs=this.history.map(function(m){return {role:m.role,content:m.content};});
+      var r=await gs('assistantChat',{messages:msgs, withSource:this.withSource});
+      var meta=null;
+      if(this.withSource){ meta=r.sourceUsed?'ソースコード参照済み':(r.sourceError?'ソース参照不可: '+r.sourceError:null); }
+      this.history.push({role:'assistant',content:r.reply||'（応答が空でした）',meta:meta});
+    }catch(e){
+      this.history.push({role:'assistant',content:'エラー: '+(e.message||e),meta:null});
+    }
+    this.busy=false; this.render();
+    var ta2=document.getElementById('asInput'); if(ta2)ta2.focus();
+  }
+};
+/* ---------- タブ管理（パネル）: コンセプトタブの表示/非表示・並び順 ----------
+整理状況（tabPrefs）はサーバ側でプロジェクト本体に保存され、リロード・rev更新を跨いで維持される。
+非表示は削除ではない——方向・版・選定のデータは無傷で、いつでもここから戻せる。 */
+var TabMgr={
+  busy:false,
+  open(){ this.render(); Panels.open('tabmgr'); },
+  render(){
+    var _hid=(P.tabPrefs&&P.tabPrefs.hidden)||[];
+    var cs=P.concepts||[];
+    var h='<button class="sop-close" onclick="Panels.closeAll()">✕</button>';
+    h+='<div class="dt-eyebrow">Tab Manager</div><div class="dt-title">タブ管理</div>';
+    h+='<div style="font-size:12px;line-height:1.75;color:var(--ink2);margin-top:6px">コンセプトタブの表示/非表示と並び順。整理した状態は<b>プロジェクトに自動保存</b>され、リロードやバージョン更新を跨いで維持されます。非表示は削除ではありません——方向・版・選定のデータはそのまま残り、いつでもここから戻せます。</div>';
+    h+='<div style="margin-top:14px">';
+    cs.forEach(function(c,i){
+      var hidden=_hid.indexOf(c.id)>=0;
+      var active=App.view==='concept'&&c.id===P.activeConceptId;
+      var nDir=(P.directions||[]).filter(function(d){return d.conceptId===c.id;}).length;
+      h+='<div style="display:flex;align-items:center;gap:8px;border:1px solid var(--lineS);border-radius:10px;padding:8px 12px;margin-bottom:6px;font-size:12px'+(hidden?';opacity:.6;background:var(--surface)':'')+'">'
+        +'<div style="display:flex;flex-direction:column;gap:1px">'
+          +'<button class="tbtn" style="padding:0 7px;min-width:0;line-height:1.3'+(i===0?';opacity:.3':'')+'"'+(i===0?' disabled':'')+' onclick="TabMgr.move(\''+c.id+'\',-1)" title="上へ">▲</button>'
+          +'<button class="tbtn" style="padding:0 7px;min-width:0;line-height:1.3'+(i===cs.length-1?';opacity:.3':'')+'"'+(i===cs.length-1?' disabled':'')+' onclick="TabMgr.move(\''+c.id+'\',1)" title="下へ">▼</button>'
+        +'</div>'
+        +'<div style="flex:1;min-width:0"><b>'+esc(c.name.split('（')[0])+'</b>'+(active?' <span style="font-size:9.5px;color:var(--accInk);font-weight:700">表示中</span>':'')
+          +'<div style="font-size:10px;color:var(--mute)">方向 '+nDir+'件'+(hidden?'・非表示（データは保持）':'')+'</div></div>'
+        +(hidden
+          ?'<button class="tbtn" style="font-weight:700" onclick="TabMgr.setHidden(\''+c.id+'\',false)">表示に戻す</button>'
+          :'<button class="tbtn" onclick="TabMgr.setHidden(\''+c.id+'\',true)">非表示にする</button>')
+        +'</div>';
+    });
+    h+='</div>';
+    h+='<div style="font-size:10.5px;color:var(--mute);margin-top:8px">並び順はタブバーにそのまま反映されます。最後の1タブは非表示にできません。非表示タブに生成キューから飛んだ場合は「(非表示中)」の目印つきで一時的にタブに現れます。</div>';
+    document.getElementById('tabmgrInner').innerHTML=h;
+  },
+  async setHidden(id,hidden){
+    if(this.busy)return; this.busy=true;
+    try{
+      P=await gs('updateTabPrefs',{op:hidden?'hide':'show', id:id});
+      this.busy=false; this.render(); renderTop(); render();
+      toast(hidden?'タブを非表示にしました（データは保持・整理状況は自動保存済み）':'タブを表示に戻しました');
+    }catch(e){ this.busy=false; toast('変更に失敗: '+(e.message||e),true); }
+  },
+  async move(id,delta){
+    if(this.busy)return; this.busy=true;
+    try{
+      P=await gs('updateTabPrefs',{op:'move', id:id, delta:delta});
+      this.busy=false; this.render(); renderTop();
+    }catch(e){ this.busy=false; toast('移動に失敗: '+(e.message||e),true); }
+  }
+};
+/* ---------- コード目録（パネル） ---------- */
+/* ---------- 王道の性格軸（アーキタイプ）: 目録ドロワー内の編集・承認UI ----------
+構成（members）と承認状態はPから同期描画。プロファイル（床＋条件付き最頻値）はサーバの
+_archetypeGuidesが唯一の導出元——クライアントで再計算しない（表示と設計知識の乖離を作らないため）。 */
+var Arch={
+  view:null, loading:false, opened:{},
+  sectionHTML(cb){
+    var self=this;
+    var h='<div class="cbsec"><div class="lb2">王道の性格軸（アーキタイプ）— 構成の編集と承認</div>';
+    h+='<div style="font-size:11.5px;color:var(--ink2);line-height:1.75;margin-bottom:7px">「王道＝単一の最頻ベクトル」の分解。<b>床</b>（8缶の大多数が共有＝ビールであるための条件）は全軸で共通に守り、<b>最頻が割れている拮抗属性</b>だけを軸ごとの条件付き最頻値で規定する。構成銘柄の割当は判断＝承認待ちから始まる。<b>承認した軸だけが設計知識に接続され</b>、「力強さの王道で」等の指示が効くようになる。構成を変えると承認は自動で失効する（プロファイルが変わるため）。</div>';
+    if(!(cb.archetypes||[]).length){ h+='<div style="font-size:11.5px;color:var(--mute)">性格軸が未初期化です。code.gsをv72に更新して再読み込みしてください。</div></div>'; return h; }
+    var pool=(cb.targets||[]).concat(cb.refTargets||[]);
+    cb.archetypes.forEach(function(a){
+      var ok=a.status==='approved', open=!!self.opened[a.id];
+      var g=self.view&&(self.view.archetypeGuides||[]).find(function(x){return x.archetypeId===a.id;});
+      h+='<div style="border:1px solid '+(ok?'var(--accInk)':'var(--lineS)')+';border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:11.5px;line-height:1.75">';
+      h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>'+esc(a.name)+'</b>'
+        +'<span style="font-size:9.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:'+(ok?'var(--accInk)':'#a15c00')+'">'+(ok?'承認済 '+esc(a.approvedAt||''):'承認待ち（設計知識に未接続）')+'</span>'
+        +'<span style="flex:1"></span>'
+        +'<a href="#" style="color:var(--accInk);font-size:11px" onclick="Arch.toggle(\''+a.id+'\');return false">'+(open?'プロファイルを閉じる ▴':'プロファイルを見る ▾')+'</a>'
+        +(ok?'<button class="tbtn" onclick="Arch.setStatus(\''+a.id+'\',\'draft\')">承認を取り下げ</button>'
+            :'<button class="tbtn" style="font-weight:800" onclick="Arch.setStatus(\''+a.id+'\',\'approved\')">この構成で承認</button>')
+        +'</div>';
+      if(a.semantic)h+='<div style="color:var(--mute);margin-top:2px">'+esc(a.semantic)+'</div>';
+      if(a.approvedNote&&ok)h+='<div style="color:var(--mute);margin-top:2px;font-size:10px">'+esc(a.approvedNote)+'</div>';
+      // 構成チップ
+      h+='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;align-items:center">';
+      (a.members||[]).forEach(function(mid){
+        var t=null; pool.forEach(function(x){if(x.id===mid)t=x;});
+        var name=t?t.brand:mid, coded=!!(cb.table&&cb.table[mid]);
+        h+='<span style="font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--surface)" title="'+(coded?'符号化済み':'未符号化＝条件付き最頻値に票が入っていない')+'">'+esc(name)+(coded?'':' <span style="color:#a15c00">未符号化</span>')+' <a href="#" style="color:var(--mute);text-decoration:none" onclick="Arch.rmMember(\''+a.id+'\',\''+mid+'\');return false">×</a></span>';
+      });
+      var cands=pool.filter(function(t){return (a.members||[]).indexOf(t.id)<0;});
+      if(cands.length){
+        h+='<select style="font-size:10.5px;border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--surface)" onchange="Arch.addMember(\''+a.id+'\',this)"><option value="">＋構成に追加…</option>'
+          +cands.map(function(t){return '<option value="'+t.id+'">'+esc(t.brand)+'</option>';}).join('')+'</select>';
+      }
+      h+='</div>';
+      // プロファイル展開（サーバ導出）
+      if(open){
+        if(!g){ h+='<div style="font-size:11px;color:var(--mute);margin-top:6px">'+(self.loading?'プロファイルを導出中…':'読み込み待ち')+'</div>'; }
+        else{
+          h+='<div style="border-top:1px dashed var(--lineS);margin-top:7px;padding-top:6px">';
+          if(g.floor&&g.floor.length){
+            h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:3px">床（全軸共通・維持）</div>'
+              +'<div style="font-size:10.5px;margin-bottom:5px">'+g.floor.map(function(c){return esc(c.attr)+'＝<b>'+esc(c.level)+'</b>';}).join('　')+'</div>';
+          }
+          h+='<div style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink2);margin-bottom:3px">性格プロファイル（拮抗属性の条件付き最頻値・符号化 '+g.membersInfo.coded+'/'+g.membersInfo.total+'缶）</div><table class="cbtable">';
+          (g.profile||[]).forEach(function(c){
+            h+='<tr><td style="white-space:nowrap">'+esc(c.attr)+'</td><td>'
+              +(c.level===null?'<span style="color:var(--mute)">（'+esc(c.note||'符号化待ち')+'）</span>':'<b>'+esc(c.level)+'</b> <span style="color:var(--mute)">'+esc(c.share||'')+(c.contributors?'（'+c.contributors.map(esc).join('・')+'）':'')+'</span>')
+              +(c.tieWith?' <span style="color:var(--mute);font-size:10px">拮抗: '+c.tieWith.map(esc).join('・')+'＝自由域</span>':'')
+              +(c.sigRisk?'<br><span style="color:#9C3232;font-size:10px">⚠ 署名帯（'+esc(c.sigRisk)+'の識別署名と同値・1缶の票）: 設計はこの水準を直接採らず隣接水準か二次変数で再実装</span>':'')
+              +'</td></tr>';
+          });
+          h+='</table>';
+          if(g.thin)h+='<div style="color:#a15c00;font-size:10.5px;margin-top:3px">符号化済みの構成が'+g.membersInfo.coded+'缶＝解像度が低い。上の一覧から参照缶に画像を入れると票が増えます。</div>';
+          h+='</div>';
+        }
+      }
+      h+='</div>';
+    });
+    h+='</div>';
+    return h;
+  },
+  async _ensure(){
+    if(this.view||this.loading)return;
+    this.loading=true; 
+    try{ this.view=await gs('getStyleGuidesView'); }
+    catch(e){ toast('性格軸の導出取得に失敗: '+(e.message||e),true); }
+    this.loading=false; Codebook.open();
+  },
+  toggle(id){
+    if(this.opened[id]){ delete this.opened[id]; Codebook.open(); return; }
+    this.opened[id]=true; Codebook.open();
+    this._ensure();
+  },
+  async setStatus(id,status){
+    if(status==='approved'&&!confirm('この構成で承認しますか？ 承認すると設計知識に接続され、「'+((P.audit.codebook.archetypes||[]).find(function(a){return a.id===id;})||{name:''}).name+'」を名指しした生成指示が効くようになります。'))return;
+    try{
+      P=await gs('updateArchetype',{id:id,status:status});
+      this.view=null; Rules.view=null; Codebook.open();
+      toast(status==='approved'?'承認しました。設計知識に接続されます':'承認を取り下げました（設計知識から切断）');
+      this._ensure();
+    }catch(e){ toast('更新に失敗: '+(e.message||e),true); }
+  },
+  async addMember(id,sel){
+    var mid=sel.value; if(!mid)return; sel.value='';
+    try{
+      P=await gs('updateArchetype',{id:id,addMember:mid});
+      this.view=null; Rules.view=null; Codebook.open(); toast('構成に追加しました（承認は失効＝再承認が必要）');
+      this._ensure();
+    }catch(e){ toast('追加に失敗: '+(e.message||e),true); }
+  },
+  async rmMember(id,mid){
+    try{
+      P=await gs('updateArchetype',{id:id,removeMember:mid});
+      this.view=null; Rules.view=null; Codebook.open(); toast('構成から外しました（承認は失効＝再承認が必要）');
+      this._ensure();
+    }catch(e){ toast('変更に失敗: '+(e.message||e),true); }
+  },
+  async addRef(){
+    var b=document.getElementById('refBrand'), m=document.getElementById('refMaker'), r=document.getElementById('refBasis');
+    if(!b||!b.value.trim()){ toast('銘柄名を入れてください',true); return; }
+    try{
+      P=await gs('addRefTarget',{brand:b.value.trim(), maker:(m&&m.value.trim())||'', basis:(r&&r.value.trim())||''});
+      this.view=null; Rules.view=null; Codebook.open(); toast('参照缶を追加しました。画像を入れて符号化すると性格軸と模倣検知に効き始めます');
+    }catch(e){ toast('追加に失敗: '+(e.message||e),true); }
+  },
+  async delRef(id){
+    if(!confirm('この参照缶を削除しますか？（符号化行と性格軸の構成からも外れます）'))return;
+    try{
+      P=await gs('removeRefTarget',{id:id});
+      this.view=null; Rules.view=null; Codebook.open(); toast('参照缶を削除しました');
+    }catch(e){ toast('削除に失敗: '+(e.message||e),true); }
+  }
+};
+
+var Codebook={
+  open(){
+    var cb=P.audit&&P.audit.codebook;
+    var h='<button class="sop-close" onclick="Panels.closeAll()">✕</button>';
+    h+='<div class="dt-eyebrow">Category Codebook</div><div class="dt-title">コード目録 <span style="font-size:11px;color:var(--mute);font-weight:400">'+esc(cb?cb.version:'')+' / '+esc(cb?cb.date:'')+'</span></div>';
+    h+='<div style="font-size:12px;line-height:1.75;color:var(--ink2);margin-top:6px">ビール棚の慣習の台帳。上位の缶を8つの属性に符号化し、大多数が共有する水準（例: 地の金属光沢 8本中7本）をコードと機械判定する。RIBの各案がどの慣習を守り・どれをどれだけ破るのかを共有数で特定し、破りごとの誤読リスクを対照缶との属性の重なりで検証するために使う。</div>';
+    if(!cb){ h+='<div style="color:var(--mute)">目録が未初期化です。再読込してください。</div>'; }
+    else {
+      // 1. 完成基準と検査（承諾を乞わない。基準と結果を示す）
+      h+='<div class="cbsec" style="margin-top:14px"><div class="lb2">この目録の完成基準（機械検査）</div>'
+        +'<div style="font-size:12px;line-height:1.8;color:var(--ink2)">'
+        +'基準1: 方向・可動域・規制に記録された<b>すべての誤読リスク</b>に判定手段（対照缶 or 調査測定）が割当済みであること — '
+        +(cb.coverage ? (cb.coverage.missing.length===0
+            ? '<b style="color:var(--ok)">検査通過（'+cb.coverage.covered+'/'+cb.coverage.total+'）</b>'
+            : '<b style="color:var(--danger)">未達: '+cb.coverage.missing.map(esc).join('・')+' に判定手段がありません</b>') : '未計算')
+        +'<br>基準2: 全対象・対照缶が画像から二重符号化され、不一致セルが裁定済みであること — 現在 '+((cb.targets||[]).concat(cb.contrast||[]).filter(function(t){return cb.table&&cb.table[t.id];}).length)+'/'+((cb.targets||[]).length+(cb.contrast||[]).length)+'本（参照缶は完成基準に数えない）<br>'
+        +'基準3: ペア弁別課題（全2缶ペアの差分がスキーマで記述できるか）の通過 — 基準2の後に実施<br>'
+        +'基準4: 方向の範囲の確定 — <b style="color:var(--warn)">未了</b>（依頼書「浄化の意匠体系の棚卸し」の結果待ち。それまで方向の定義の一覧は最終としない）<br>'
+        +'<span style="color:var(--mute);font-size:11px">未了の作業: 各缶の画像投入と棚写真の撮影。台帳に載っていない誤読の実例（現場で聞かれた「〜に見える」）は追記対象。</span>'
+        +'</div></div>';
+
+      // 2. 誤読リスク台帳（対照群はここから導出される）
+      h+='<div class="cbsec"><div class="lb2">誤読リスク台帳</div>'
+        +'<div style="font-size:11.5px;color:var(--ink2);line-height:1.7;margin-bottom:7px">失敗の典型は「別カテゴリの缶に見える」こと（晴れ風への批評「清涼飲料に見える」が実例）。行は<b>01 調査・03 可動域の失敗前例・広告自主基準</b>からの機械列挙（漏れは基準1の検査で検出）。各リスクの判定手段は、同じ属性表に符号化した対照缶との重なり、または棚に代表缶が存在しない場合は調査での直接測定。</div>';
+      h+='<table class="cbtable"><thead><tr><th>リスク</th><th>実証（どこに記録されているか）</th><th>関係する方向</th><th>判定手段</th></tr></thead><tbody>';
+      (cb.misreads||[]).forEach(function(m){
+        var how = m.method==='対照缶'
+          ? (m.reps||[]).map(function(r){return '<div style="margin-bottom:5px"><b>'+esc(r.brand)+'</b><br><span style="font-size:10px;color:var(--mute)">'+esc(r.repBasis)+'</span></div>';}).join('')
+          : '<b>調査で直接測定</b>（棚に代表缶が存在しないリスク）<br><span style="font-size:10px;color:var(--mute)">'+esc(m.measure||'')+'</span>';
+        h+='<tr><td>'+esc(m.wall)+'</td><td>'+esc(m.evidence)+'</td><td>'+esc((m.directions||[]).join('、'))+'</td><td>'+how+'</td></tr>';
+      });
+      h+='</tbody></table></div>';
+
+      // 3. 符号化対象一覧（王道8缶＋誤読物差し8缶）
+      h+='<div class="cbsec"><div class="lb2">符号化対象一覧 — 各行に公式の製品正面画像か棚写真を入れてください</div>';
+      h+='<div style="font-size:11px;color:var(--mute);margin-bottom:6px">コード母集団（'+cb.targets.length+'本）: '+esc(cb.selection.rule.split('。')[0])+'。出典: '+ (cb.selection.sources||[]).map(function(sc){return '<a href="'+esc(sc.url)+'" target="_blank" rel="noopener" style="color:var(--accInk)">'+esc(sc.title.split('（')[0])+'</a>';}).join(' / ')+'。誤読物差し（'+cb.contrast.length+'本）はコードに数えず、RIB案との属性重なりの判定にのみ使います。</div>';
+      h+='<table class="cbtable"><thead><tr><th>缶</th><th>区分</th><th>選定根拠</th><th>符号化状態</th><th></th></tr></thead><tbody>';
+      cb.targets.forEach(function(t){ h+=Codebook._row2(cb,t,'コード母集団',t.basis); });
+      (cb.refTargets||[]).forEach(function(t){ h+=Codebook._row2(cb,t,'参照専用',esc(t.basis||'')+' <a href="#" style="color:var(--mute);font-size:10px" onclick="Arch.delRef(\''+t.id+'\');return false">削除</a>'); });
+      cb.contrast.forEach(function(t){ h+=Codebook._row2(cb,t,'誤読物差し',esc(t.why)+'。'+(t.repBasis||'')); });
+      h+='</tbody></table>';
+      h+='<div style="font-size:10.5px;color:var(--mute);margin-top:4px">参照専用の缶は<b>王道の最頻値・ペア弁別・網羅性に数えません</b>。役割は2つ——性格軸の条件付き最頻値に票を足すことと、符号化されると識別署名が模倣検知の照合対象に加わること。</div>';
+      h+='<div style="display:flex;gap:6px;margin-top:7px;align-items:center;flex-wrap:wrap">'
+        +'<input id="refBrand" placeholder="参照缶を追加: 銘柄名" style="flex:0 0 22%;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;background:var(--surface);outline:none">'
+        +'<input id="refMaker" placeholder="メーカー" style="flex:0 0 14%;min-width:90px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;background:var(--surface);outline:none">'
+        +'<input id="refBasis" placeholder="選定根拠（どの性格の参照か・選定は判断と明記）" style="flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;background:var(--surface);outline:none">'
+        +'<button class="tbtn" onclick="Arch.addRef()">参照缶として追加</button></div>';
+      h+='</div>';
+
+      // 3.5 王道の性格軸（アーキタイプ）— 構成の編集と承認
+      h+=Arch.sectionHTML(cb);
+
+      // 4. スキーマ
+      h+='<div class="cbsec"><div class="lb2">属性スキーマ v1 — 缶を符号化する8つの物差し（仮説: ペア弁別課題で検査し増減します）</div>';
+      h+='<table class="cbtable"><thead><tr><th>属性</th><th>水準</th><th>判定基準（誰が符号化しても同じ値になるための操作的定義）</th></tr></thead><tbody>';
+      cb.schema.forEach(function(a){
+        h+='<tr><td>'+esc(a.id)+' '+esc(a.name)+'</td><td>'+a.levels.map(esc).join(' / ')+'</td><td>'+esc(a.criterion)+'</td></tr>';
+      });
+      h+='</tbody></table></div>';
+
+      // 5. 符号化表
+      var encoded = cb.targets.concat(cb.refTargets||[]).concat(cb.contrast).filter(function(t){return cb.table[t.id];});
+      h+='<div class="cbsec"><div class="lb2">符号化表 — 各缶を8属性の値に変換した結果</div>';
+      h+='<div style="font-size:11px;color:var(--mute);margin-bottom:6px;line-height:1.7">上の表の「缶の画像を入れて表に追加」に公式の製品正面画像か棚写真を入れると、AIがその缶を8属性の値に変換して1行埋めます。同じ画像で独立に2回変換し、食い違ったセルは黄色＝あなたが決めます。全セルは元画像に遡れます（私の記憶では書きません——それが表の信頼性の根拠です）。</div>';
+      if(!encoded.length){ h+='<div style="font-size:11.5px;color:var(--mute)">まだ0本です。</div>'; }
+      else {
+        h+='<div style="overflow-x:auto"><table class="cbmx"><thead><tr><th>缶</th>'+cb.schema.map(function(a){return '<th>'+esc(a.id)+'</th>';}).join('')+'</tr></thead><tbody>';
+        encoded.forEach(function(t){
+          var row=cb.table[t.id];
+          h+='<tr><td>'+esc(t.brand)+'</td>';
+          cb.schema.forEach(function(a){
+            var c=row.cells[a.id];
+            if(!c){ h+='<td class="na">—</td>'; return; }
+            if(c.status==='needs-adjudication'){
+              h+='<td class="adj" title="1回目: '+esc(c.v)+' / 2回目: '+esc(c.v2)+'"><select onchange="Codebook.adjudicate(\''+t.id+'\',\''+a.id+'\',this.value)"><option value="">裁定…</option>'
+                +a.levels.map(function(l){return '<option>'+esc(l)+'</option>';}).join('')+'</select></td>';
+            } else {
+              h+='<td class="'+(c.status==='verified'?'ver':'enc')+'" title="'+(c.status==='verified'?'人間の裁定で確定':'2回の符号化が一致')+'">'+esc(c.v)+'</td>';
+            }
+          });
+          h+='</tr>';
+        });
+        h+='</tbody></table></div>';
+      }
+      h+='</div>';
+
+      // 6. コード判定
+      h+='<div class="cbsec"><div class="lb2">コード判定 — 対象集合の'+Math.round(cb.kThreshold*100)+'%以上が共有する水準を「コード（棚の慣習）」と機械判定 '+esc(cb.codesNote||'')+'</div>';
+      if(cb.codes&&cb.codes.length){
+        h+='<div>'+cb.codes.map(function(c){return '<span class="codechip'+(c.isCode?' is':'')+'"><b>'+esc(c.level)+'</b><span>'+esc(c.attr)+'</span><span class="sh">'+esc(c.share)+'</span>'+(c.isCode?'<span style="font-size:9px;color:var(--accInk)">CODE</span>':'')+'</span>';}).join('')+'</div>';
+      } else h+='<div style="font-size:11.5px;color:var(--mute)">符号化された対象が0本のため未計算。</div>';
+      h+='</div>';
+
+      h+='<div class="cbsec"><div class="lb2">ペア弁別課題（機械実行）</div>'
+        +'<div style="font-size:11.5px;line-height:1.7;color:'+(cb.pairTest&&cb.pairTest.status==='passed'?'var(--ink2)':'#9C3232')+'">'
+        +esc((cb.pairTest&&cb.pairTest.note)||'未実施')+'</div></div>';
+      h+='<div class="cbsec"><div class="lb2">検査・鮮度</div><div style="font-size:11.5px;line-height:1.7;color:var(--ink2)">'+esc(cb.pairTest.note)+'<br>'+esc(cb.notes)+'</div></div>';
+    }
+    document.getElementById('codebookInner').innerHTML=h;
+    Panels.open('codebook');
+  },
+  _row2(cb,t,kind,rationale){
+    var row=cb.table[t.id];
+    var st=row?((row.imageFile?'画像から符号化 ':'一次符号化（記憶ベース） ')+row.agreement+'%'+(Codebook._pending(cb,t.id)?' / 裁定待ちあり':'')):'未符号化';
+    return '<tr><td>'+esc(t.brand)+'</td><td style="white-space:nowrap;font-size:10px;color:'+(kind==='コード母集団'?'var(--accInk)':(kind==='参照専用'?'var(--ink2)':'var(--warn)'))+'">'+kind+'</td><td>'+rationale+'</td><td>'+esc(st)+'</td>'
+      +'<td><label class="encbtn">缶の画像を入れて表に追加<input type="file" accept="image/*" style="display:none" onchange="Codebook.encode(this,\''+t.id+'\')"></label></td></tr>';
+  },
+  _pending(cb,id){
+    var row=cb.table[id]; if(!row)return false;
+    return cb.schema.some(function(a){var c=row.cells[a.id];return c&&c.status==='needs-adjudication';});
+  },
+  encode(input,targetId){
+    var f=input.files&&input.files[0]; if(!f)return;
+    var img=new Image(), fr=new FileReader();
+    fr.onload=function(){ img.onload=async function(){
+      var MAX=1024, sc=Math.min(1,MAX/Math.max(img.width,img.height));
+      var cv=document.createElement('canvas'); cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      toast('二重符号化を実行中…');
+      try{
+        P=await gs('encodeCanToSchema',{targetId:targetId, imageB64:cv.toDataURL('image/png').split(',')[1], mime:'image/png'});
+        Arch.view=null; Rules.view=null;
+        renderTop(); Codebook.open();
+        var row=P.audit.codebook.table[targetId];
+        toast('符号化完了（2回の一致率 '+row.agreement+'%）。黄色セルは裁定してください');
+      }catch(e){ toast('符号化に失敗: '+(e.message||e),true); }
+    }; img.src=fr.result; };
+    fr.readAsDataURL(f);
+  },
+  async adjudicate(targetId,attrId,value){
+    if(!value)return;
+    try{
+      P=await gs('adjudicateCell',{targetId:targetId, attrId:attrId, value:value});
+      Arch.view=null; Rules.view=null;
+      Codebook.open(); toast('裁定を記録し、コード判定を再計算しました');
+    }catch(e){ toast('裁定に失敗: '+(e.message||e),true); }
+  }
+};
+
+var Actions={
+  recapture(dirId,verId){
+    var k='rc:'+verId; if(GROUND[k])return;
+    if(!window.confirm('この画像を本方向の完成案として採択します。\n・AIが画像を観測し、設計書の値（地・図像・構図・名前・コピー）を実態に合わせた上で、各項目のwhy欄に「この表現がこの方向の命題に効く論拠」を作成します（事後採択と明記）\n・缶上の実名（例: HORIZON）は「なぜこの方向に合うか」の論拠と偶発出自の開示つきで正式記録（監査未実施）\n・プロンプトも再コンパイルされ、以後の再生成は同じ名前でロック\n・視覚モデルのAPI課金が発生します。実行しますか？'))return;
+    GROUND[k]=1; render();
+    gs('rebuildSpecFromImage',dirId,verId).then(function(p){ delete GROUND[k]; P=p; render(); var d=dirOf(dirId),v=d&&verOf(d,verId); toast('採択完了: 「'+((v&&v.spec.nameChoice&&v.spec.nameChoice.name)||'?')+'」を論拠つきでこの版の名前として記録しました（設計書のwhy欄参照）'); })
+      .catch(function(e){ delete GROUND[k]; render(); toast(e&&e.message||'採録に失敗しました',true); });
+  },
+  clearDir(dirId){
+    var d=dirOf(dirId); if(!d)return;
+    var n=0; d.versions.forEach(function(v){ TYPES.forEach(function(t){ var x=v.visuals&&v.visuals[t.k]; if(x&&x.file)n++; }); });
+    if(!n){ toast('この行に生成済み画像はありません'); return; }
+    if(!window.confirm('方向「'+(d.name||'')+'」の生成画像 '+n+' 枚を削除して未生成に戻します。\n設計（箱）と幅出しの構造は残ります。よろしいですか？'))return;
+    gs('clearDirectionOutputs',dirId).then(function(p){ P=p; render(); toast('行の画像をクリアしました（設計は保持）'); })
+      .catch(function(e){ toast(e&&e.message||'クリアに失敗しました',true); });
+  },
+  clearVer(dirId,verId){
+    if(!window.confirm('この版の生成画像を削除して未生成に戻します。\n設計（箱）と幅出しの構造はそのまま残ります。よろしいですか？'))return;
+    gs('clearVersionOutputs',dirId,verId).then(function(p){ P=p; render(); toast('生成画像をクリアしました（設計は保持）'); })
+      .catch(function(e){ toast(e&&e.message||'クリアに失敗しました',true); });
+  },
+  ground(dirId){
+    if(GROUND[dirId])return;
+    GROUND[dirId]=1; render();
+    gs('runGrounding',dirId).then(function(p){
+      delete GROUND[dirId]; P=p; render();
+      var d=dirOf(dirId);
+      if(d&&!d.gated) toast('監査クリア: 凍結を解除しました。識別条件と出典は設計書の「監査記録」へ');
+      else toast('監査結果: 凍結維持。判定理由と出典を設計書の「監査記録」に保存しました',true);
+    }).catch(function(e){ delete GROUND[dirId]; render(); toast(e&&e.message||'グラウンディング監査に失敗しました',true); });
+  },
+  buildLevels(dirId){
+    toast('下限・攻め端の水準を設計中…（数分。右上の通信表示とコンソール参照）');
+    gs('buildDirectionExecutions',{directionId:dirId}).then(function(r){ P=r.project; render(); toast('水準を追加しました: '+r.made.join('・')); })
+      .catch(function(e){ toast(e&&e.message||'水準構築に失敗しました',true); });
+  },
+  draftSheet(cid){
+    if(!window.confirm('未決のセルをAIが下書きします。出自は「AI下書き（未確認）」となり、各セルをクリックして修正・確定できます。実行しますか？'))return;
+    toast('シートを下書き中…（右上の通信表示とコンソール参照）');
+    gs('draftConceptSheet',{conceptId:cid}).then(function(p){ P=p; render(); toast('下書きしました。各セルを確認・修正してください（未確認のまま生成に使うと設計の根拠が仮説に乗ります）'); })
+      .catch(function(e){ toast(e&&e.message||'下書きに失敗しました',true); });
+  },
+  editSheet(cid, field, label){
+    var c=conceptOf(cid); var cur=(c.sheet&&c.sheet[field]&&c.sheet[field].v)||'';
+    var v=window.prompt('「'+label+'」を定義（このタブのアウトプットとして保存・出自は「ツール上で定義」になります）', cur==='未決'?'':cur);
+    if(v===null)return;
+    gs('updateConceptSheet',cid,field,v).then(function(p){ P=p; render(); toast('シートを更新しました'); })
+      .catch(function(e){ toast(e&&e.message||'更新できませんでした',true); });
+  },
+  addConcept(){
+    var name=window.prompt('④ 新コンセプトのタブ名（例: ⑤ 夜のリセット）'); if(!name)return;
+    var insight=window.prompt('インサイト（任意・後で編集可）')||'';
+    var st=window.prompt('開発コンセプト（任意・仮でも可）')||'';
+    gs('addConcept',name,insight,st).then(function(p){ P=p; render(); toast('コンセプトを追加しました。推奨は先に「知識を調える」（先客・規制の事前検査）。生成先行も可能ですが、棚卸し前の設計は監査未実施の仮案です——詳細は画面の「進め方」ガイドへ'); })
+      .catch(function(e){ toast(e&&e.message||'追加できませんでした',true); });
+  },
+  delVer(dirId,verId){
+    var d=dirOf(dirId), v=d?verOf(d,verId):null; if(!v)return;
+    if(!window.confirm('「'+(v.label||verId)+'」を削除します。画像スロットごと消え、元に戻せません。よろしいですか？'))return;
+    gs('deleteVersion',dirId,verId).then(function(p){ P=p; render(); toast('版を削除しました'); })
+      .catch(function(e){ toast(e&&e.message?e.message:'削除できませんでした',true); });
+  }
+};
+var Briefs={
+  open(){ this.render(); Panels.open('briefs'); },
+  render(){
+    var h='<button class="sop-close" onclick="Panels.closeAll()">✕</button>';
+    h+='<div class="dt-eyebrow">Research Briefs</div><div class="dt-title">調査依頼書</div>';
+    h+='<div style="font-size:11.5px;line-height:1.7;color:var(--ink2);margin-top:4px">指示がツール内の知識（01 調査・03 可動域・記号監査）の外に出たとき、憶測で作らず自動起案される依頼文。文面をディープリサーチにかけ、答えを知識に追加して再開する。</div>';
+    h+='<div class="dt-tag">指示が知識の外に出たとき（監査ギャップ）に自動起案された調査依頼です。コピーしてディープリサーチに投げ、結果はチャットセッションで練ってから知識に反映します。</div>';
+    if(!(P.briefs||[]).length)h+='<div style="margin-top:16px;color:var(--faint);font-size:12px">まだありません。</div>';
+    (P.briefs||[]).slice().reverse().forEach(function(b){
+      h+='<div class="briefcard"><div class="bt">'+esc(b.title)
+        +(b.status==='answered'?' <span class="vd ok">結果取込済</span>':(b.status==='closed'?' <span class="vd ok">解決済</span>':''))+'</div>'
+        +'<div class="btrg">'+esc((b.created||'').slice(0,16).replace('T',' '))+(b.trigger?' / 起点: '+esc(b.trigger):'')+'</div>'
+        +'<pre id="btext-'+b.id+'">'+esc(b.text)+'</pre>'
+        +'<button class="copy" onclick="Briefs.copy(\''+b.id+'\')">依頼文をコピー</button>'
+        +(b.result?'<div style="border:1px solid var(--ok);border-radius:10px;padding:9px 12px;margin-top:8px;font-size:11.5px;line-height:1.7"><b>取り込んだ結果</b>（'+esc(b.result.date||'')+' / '+esc(b.result.source||'')+'）<div style="white-space:pre-wrap;max-height:180px;overflow:auto;margin-top:4px;color:var(--ink2)">'+esc(b.result.text)+'</div></div>':'')
+        +'<div style="margin-top:8px"><textarea id="bres-'+b.id+'" placeholder="ディープリサーチ等の結果をここに貼り付け" style="width:100%;min-height:64px;font-size:11.5px;border:1px solid var(--line);border-radius:8px;padding:8px;box-sizing:border-box"></textarea>'
+        +'<button class="copy" style="margin-top:4px" onclick="Briefs.ingest(\''+b.id+'\')">結果を取り込む</button></div>'
+        +'</div>';
+    });
+    document.getElementById('briefsInner').innerHTML=h;
+  },
+  ingest(id){
+    var el=document.getElementById('bres-'+id);
+    var t=el&&el.value||'';
+    if(!t.trim()){ toast('貼り付けてから取り込んでください',true); return; }
+    gs('saveBriefResult',id,t).then(function(p){ P=p; Briefs.render(); render(); toast('結果を取り込みました（依頼書に保存・以後の判定の根拠として参照）'); })
+      .catch(function(e){ toast(e&&e.message||'取り込みに失敗',true); });
+  },
+  copy(id){
+    var el=document.getElementById('btext-'+id); if(!el)return;
+    var range=document.createRange(); range.selectNodeContents(el);
+    var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    try{ document.execCommand('copy'); toast('コピーしました'); }catch(e){ toast('選択しました。Ctrl+Cでコピーしてください'); }
+  }
+};
+
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){Panels.closeAll();Guide.close();}});
+App.init();
+</script>
+</body>
+</html>
