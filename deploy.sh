@@ -104,7 +104,7 @@ ALLOW_UNAUTH="${ALLOW_UNAUTH:-1}"
 echo "   account=${ACCOUNT} project=${PROJECT_ID} region=${REGION} service=${SERVICE} bucket=gs://${GCS_BUCKET}"
 
 echo "== 1/4 API・バケット・実行サービスアカウント（権限が無い項目は警告して続行） =="
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com >/dev/null 2>&1 \
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com drive.googleapis.com >/dev/null 2>&1 \
   || echo "   警告: API の有効化に失敗（既に有効か、serviceusage の権限なし）。続行する"
 
 if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" >/dev/null 2>&1; then
