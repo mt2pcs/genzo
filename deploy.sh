@@ -33,12 +33,34 @@ fi
 if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null | grep -q .; then
   if [ -n "${GCP_SA_KEY:-}" ]; then
     echo "GCP_SA_KEY から認証する..."
-    # 環境の GCP_SA_KEY は外側の {} を欠く形式で格納されている。両対応にする
-    case "$GCP_SA_KEY" in
-      \{*) KEY_JSON="$GCP_SA_KEY" ;;
-      *)   KEY_JSON="{$GCP_SA_KEY}" ;;
-    esac
-    printf '%s' "$KEY_JSON" | gcloud auth activate-service-account --key-file=-
+    # 鍵の正規化: 環境変数や GitHub Secret に入る形はまちまち（外側の {} 欠落、前後の空白や引用符、
+    # "GCP_SA_KEY=" 接頭辞、秘密鍵内の生改行）。JSON として読める形に直してから gcloud に渡す。
+    # 出力するのは診断（キー名・project_id・client_email）だけで、秘密鍵は表示しない
+    KEY_FILE="$(mktemp)"; chmod 600 "$KEY_FILE"
+    GCP_SA_KEY="$GCP_SA_KEY" python3 - "$KEY_FILE" <<'PY'
+import sys, os, json, re
+s = os.environ.get('GCP_SA_KEY', '').strip()
+s = re.sub(r'^(export\s+)?GCP_SA_KEY\s*=\s*', '', s).strip()
+for q in ("'", '"'):
+    if s.startswith(q) and s.endswith(q) and not s.startswith('"type'):
+        s = s[1:-1].strip()
+if not s.startswith('{'):
+    s = '{' + s + '}'
+try:
+    d = json.loads(s, strict=False)  # strict=False: 秘密鍵内の生改行を許容
+except Exception as e:
+    sys.stderr.write('GCP_SA_KEY を JSON として読めません: %s（先頭12文字: %r、長さ %d）\n' % (e, s[:12], len(s)))
+    sys.exit(1)
+missing = [k for k in ('type', 'project_id', 'private_key', 'client_email', 'token_uri') if k not in d]
+if missing:
+    sys.stderr.write('GCP_SA_KEY に必要なフィールドがありません: %s（あるキー: %s）\n' % (missing, sorted(d.keys())))
+    sys.exit(1)
+with open(sys.argv[1], 'w') as f:
+    json.dump(d, f)
+print('   鍵: project_id=%s client_email=%s' % (d.get('project_id'), d.get('client_email')))
+PY
+    gcloud auth activate-service-account --key-file="$KEY_FILE"
+    rm -f "$KEY_FILE"
   else
     echo "エラー: gcloud が未認証で GCP_SA_KEY も無い。gcloud auth login を先に実行すること" >&2
     exit 1
