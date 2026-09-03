@@ -37,6 +37,17 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 - 配信検証は `deploy.sh` の 3/4 が行う（/api/health と /api/getProject）。URL は完了時に表示される。
   `/healthz` は Cloud Run のフロントエンドに横取りされて 404 になる（2026-09-03 に確認）ので使わない
 
+## データ移行（GAS 版 → Cloud Run 版）— 既知の事実
+
+- GAS 版の保存先は Drive フォルダ `1ySC-deOheU-cP89RDwfq-ZrbitB7sPeu`（`genzo_project.json` = `1Ygkvdtl5_toqWqmOtfw1E7R5iDCfTEST`、
+  画像 `genzo_*.png` 466 枚・計 1.1GB）。フォルダは「リンクを知っている全員が閲覧可」なので
+  `https://drive.usercontent.google.com/download?id=<id>&export=download` で認証なしに取れる（2026-09-03 に確認）
+- 移行は `scripts/import-from-drive.sh <フォルダID> <アプリURL> <パスワード>`（アプリの `/api/admin/importFromDrive` を
+  残数 0 まで繰り返す。既存はスキップ、最後に project JSON を差し替え、旧 JSON は `backups/` に退避）。
+  このセッション環境からそのまま実行できる（curl とパスワードだけ。GCS 認証は不要）
+- Drive の一覧は Google Drive MCP の `search_files`（`parentId = '<フォルダID>'`、pageSize 1000）で 1 ページに全件取れる。
+  画像本体を MCP で運ぼうとしない（1 枚 2.3MB × 466）
+
 ## 開発
 
 - `npm test`（LLM モックの通しテスト）と `npm run check`（構文）を push 前に通す

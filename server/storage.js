@@ -12,7 +12,7 @@ var MIME_BY_EXT = { '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg
 function mimeOf(name, fallback){ return MIME_BY_EXT[path.extname(name).toLowerCase()] || fallback || 'application/octet-stream'; }
 function safeName(name){
   var n = String(name || '');
-  if (!n || n.indexOf('..') >= 0 || /[\/\\]/.test(n.replace(/^thumbs\//, ''))) throw new Error('不正なファイル名: ' + name);
+  if (!n || n.indexOf('..') >= 0 || /[\/\\]/.test(n.replace(/^(thumbs|backups)\//, ''))) throw new Error('不正なファイル名: ' + name);
   return n;
 }
 
@@ -20,6 +20,7 @@ function safeName(name){
 function localStorage(){
   var root = path.resolve(cfg.dataDir);
   fs.mkdirSync(path.join(root, 'thumbs'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'backups'), { recursive: true });
   var full = function(name){ return path.join(root, safeName(name)); };
   return {
     kind: 'local',
@@ -45,7 +46,12 @@ function localStorage(){
       catch(e){ if (e.code === 'ENOENT') return null; throw e; }
     },
     writeBytes: async function(name, buffer){ await fsp.writeFile(full(name), buffer); return { id: name, name: name }; },
-    remove: async function(name){ try { await fsp.unlink(full(name)); } catch(e){ if (e.code !== 'ENOENT') throw e; } }
+    remove: async function(name){ try { await fsp.unlink(full(name)); } catch(e){ if (e.code !== 'ENOENT') throw e; } },
+    /* 直下のファイル名一覧（thumbs/ と backups/ は含めない）。移行の既存判定用 */
+    listNames: async function(){
+      var ents = await fsp.readdir(root, { withFileTypes: true });
+      return ents.filter(function(e){ return e.isFile() && !/\.tmp\d+$/.test(e.name); }).map(function(e){ return e.name; });
+    }
   };
 }
 
@@ -86,7 +92,11 @@ function gcsStorage(){
       await obj(name).save(buffer, { contentType: mime || mimeOf(name, 'image/png'), resumable: false });
       return { id: name, name: name };
     },
-    remove: async function(name){ try { await obj(name).delete(); } catch(e){ if (e.code !== 404) throw e; } }
+    remove: async function(name){ try { await obj(name).delete(); } catch(e){ if (e.code !== 404) throw e; } },
+    listNames: async function(){
+      var files = (await bucket.getFiles({ prefix: prefix }))[0];
+      return files.map(function(f){ return f.name.slice(prefix.length); }).filter(function(n){ return n && n.indexOf('/') < 0; });
+    }
   };
 }
 

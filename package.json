@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "STORAGE=local node --watch server/index.js",
-    "check": "node --check server/index.js && node --check server/app.js && node --check server/auth.js && node --check server/genzo.js && node --check server/llm.js && node --check server/storage.js && node --check server/config.js && node --check server/lock.js",
+    "check": "node --check server/index.js && node --check server/app.js && node --check server/auth.js && node --check server/genzo.js && node --check server/llm.js && node --check server/storage.js && node --check server/drive_import.js && node --check server/config.js && node --check server/lock.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

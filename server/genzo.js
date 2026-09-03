@@ -268,6 +268,21 @@ async function resetProject(){
 var release = await _mutex.acquire(30000);
 try { return await _storeProject(_seedProject()); } finally { release(); }
 }
+/* 移行用: GAS 版の genzo_project.json をそのまま採用する（現行のものは backups/ に退避）。
+   画像はファイル名で参照するため fileId は不要。読込時に _migrate が現行 SEED_REV へ更新する */
+async function replaceProject(text){
+var p = null;
+try { p = JSON.parse(text); } catch(e){ throw new Error('genzo_project.json を JSON として読めません: ' + e.message); }
+if (!p || p.version !== 3 || !Array.isArray(p.directions)) throw new Error('genzo_project.json の形式が違います（version=3 と directions[] が必要）');
+var release = await _mutex.acquire(30000);
+try {
+var cur = await _readProjectRaw();
+var backup = null;
+if (cur){ backup = 'backups/genzo_project.' + new Date().toISOString().replace(/[:.]/g, '-') + '.json'; await _store().writeText(backup, cur.text); }
+await _store().writeText(PROJECT_FILE, text);
+return { backup: backup, seedRev: p.seedRev || 0, directions: p.directions.length, versions: p.directions.reduce(function(n, d){ return n + ((d.versions||[]).length); }, 0), refs: (p.refs||[]).length };
+} finally { release(); }
+}
 async function saveProject(partial){
 await _withLock(async function(p){
 if (partial && partial.activeConceptId) p.activeConceptId = partial.activeConceptId;
@@ -4553,5 +4568,7 @@ module.exports = {
 API: API,
 SEED_REV: SEED_REV,
 readFile: _readFile,
+saveFile: _saveFile,
+replaceProject: replaceProject,
 _internal: { seedProject: _seedProject, migrate: _migrate, loadProject: _loadProject, withLock: _withLock, mimicryCheck: _mimicryCheck, blendAllocation: _blendAllocation, lenientJSON: _lenientJSON, knowledgeFor: _knowledgeFor, hardConstraints: _hardConstraints, finishSpec: _finishSpec }
 };

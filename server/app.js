@@ -4,13 +4,15 @@
    - GET  /login, /logout   : 入室画面（APP_PASSWORD 設定時のみ。パスワード1つ。server/auth.js）
    - POST /api/:fn          : google.script.run の代替。body={args:[...]} → {ok:true,result} / {ok:false,error}
    - GET  /files/:name      : 保存画像の直接配信（任意利用）
-   - GET  /api/health       : ヘルスチェック（/healthz は Cloud Run の手前で 404 になるため使わない） */
+   - GET  /api/health       : ヘルスチェック（/healthz は Cloud Run の手前で 404 になるため使わない）
+   - POST /api/admin/importFromDrive : GAS 版 Drive フォルダからの移行（server/drive_import.js） */
 var path = require('path');
 var express = require('express');
 var cfg = require('./config');
 var genzo = require('./genzo');
 var storage = require('./storage');
 var llm = require('./llm');
+var driveImport = require('./drive_import');
 var auth = require('./auth').create({ password: cfg.password, sessionSecret: cfg.sessionSecret });
 
 var app = express();
@@ -27,6 +29,19 @@ app.use(express.static(path.join(__dirname, '..', 'public'), { index: 'index.htm
 
 /* 添付資料（analyzeStyleAssets）は base64 で最大 9MB 程度 → 余裕をもって 64MB */
 app.use('/api', express.json({ limit: '64mb' }));
+
+/* 移行: GAS 版の Drive フォルダから画像と genzo_project.json を取り込む（入室パスワードで保護。scripts/import-from-drive.sh が叩く） */
+app.post('/api/admin/importFromDrive', async function(req, res){
+  var t0 = Date.now();
+  try {
+    var r = await driveImport.run(req.body || {});
+    console.log('[import] imported=' + r.imported.length + ' errors=' + r.errors.length + ' remaining=' + r.remaining + ' ' + (Date.now() - t0) + 'ms');
+    res.json({ ok: true, result: r });
+  } catch(e){
+    console.error('[import] failed: ' + ((e && e.stack) || e));
+    res.status(500).json({ ok: false, error: (e && e.message) || String(e) });
+  }
+});
 
 app.post('/api/:fn', async function(req, res){
   var fn = req.params.fn;

@@ -16,6 +16,7 @@ Google Apps Script（`code.gs` + `index.html`）で動いていた GENZO v3 を�
 
 ```
 server/index.js    起動点（本体は server/app.js: 静的配信・/api ディスパッチ・/files・/api/health・ログイン画面）
+server/drive_import.js  GAS 版 Drive フォルダからの移行（/api/admin/importFromDrive）
 server/genzo.js    アプリ本体（code.gs の移植。シード・パイプライン・判定ロジックはそのまま）
 server/llm.js      Vertex AI / OpenAI 互換 の呼び出し層
 server/storage.js  Cloud Storage / ローカル FS
@@ -25,7 +26,7 @@ public/index.html  画面（index.html の移植。RPC ラッパー gs() のみ 
 test/              LLM をモックしたバックエンドの通しテスト（npm test）
 deploy.sh          gcloud での Cloud Run デプロイ一式
 cloudbuild.yaml    Cloud Build を使う場合の定義
-scripts/import-from-drive.sh  GAS 版の Drive フォルダを GCS に移す
+scripts/import-from-drive.sh  GAS 版の Drive フォルダをアプリ経由で保存先に移す
 ```
 
 ## ローカルで動かす
@@ -82,11 +83,16 @@ PROJECT_ID=<your-project> GCS_BUCKET=<bucket-name> ./deploy.sh
 
 ## GAS 版からデータを移す
 
-1. Drive の `GENZO_FOLDER_ID` のフォルダ（`genzo_project.json` と `genzo_*.png`）をダウンロードして展開
-2. `./scripts/import-from-drive.sh <展開フォルダ> <GCS_BUCKET>`
+GAS 版の Drive フォルダ（`GENZO_FOLDER_ID`。`genzo_project.json` と `genzo_*.png`）を、稼働中のアプリ経由で保存先へ取り込みます。
+
+1. Drive フォルダを「リンクを知っている全員が閲覧可」にするか、Cloud Run の実行サービスアカウントに閲覧共有する
+2. `scripts/import-from-drive.sh <フォルダID> <アプリURL> <入室パスワード>`
+   （`POST /api/admin/importFromDrive` を残数 0 まで繰り返す。画像は保存先に無いものだけ取り込み、全部揃ったら
+   `genzo_project.json` を差し替える。差し替え前のものは `backups/` に退避）
 3. アプリを開くと `_migrate` が現在の `SEED_REV` へ更新します（版・メモ・画像・参照・依頼は保持）
 
 画像は GAS 版と同様にファイル名で参照するため、Drive のファイル ID は不要です。
+実行サービスアカウントから Drive の一覧が取れない場合は `FILES_JSON=一覧.json`（`[{id,name,size}]`）を渡します。
 
 ## API の形
 
