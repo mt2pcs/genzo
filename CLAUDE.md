@@ -18,7 +18,11 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 
 ## デプロイ（Cloud Run）— 既知の事実
 
-- **この Claude Code クラウド環境（env_01H8sS28LBDHFeKb8Wuo8AXt）には GCP 認証が設定済み**:
+- **GCP 認証（GCP_SA_KEY）があるのは環境「main」（env_01H8sS28LBDHFeKb8Wuo8AXt）だけ**。環境「default」
+  （env_01WuDfRzLqe9urFFB3SnUXXJ、2026-09-01 作成、desktop app からの新規セッションはここに入る）には
+  CLOUDSDK_AUTH_ACCESS_TOKEN しか無く GCP_SA_KEY は無い（2026-09-03 確認）。今いる環境は `get_session` の
+  environment_id で判る。default 環境にいるなら `create_session` で `environment_id` を main にして子セッションを起こす
+- **環境「main」には GCP 認証が設定済み**:
   環境変数 `GCP_SA_KEY` = サービスアカウントキー `love-coach-deployer@love-coach-sprint0`。
   外側の `{}` を欠いた形で格納されている（`deploy.sh` が両対応で吸収する）。
   **プロジェクト ID は love-coach-sprint0**。名前は別アプリ由来だが、思考の炉（shiko-no-ro）など
@@ -28,7 +32,8 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 - `CLOUDSDK_AUTH_ACCESS_TOKEN` も環境にあるが失効・権限不足で使えないことがある。`deploy.sh` は unset して鍵を優先する
 - **デプロイは default（手動承認）権限モードのセッションで実行する**。auto モードでは認証情報を扱う
   コマンドが承認制になり `bash deploy.sh` が通らない（2026-09-02 に確認）。auto モードのセッションにいる場合は
-  `create_session`（Claude Code Remote MCP）で `permission_mode: "default"` の子セッションを起こして
+  `create_session`（Claude Code Remote MCP）で `permission_mode: "default"`、`environment_id: env_01H8sS28LBDHFeKb8Wuo8AXt`、
+  `source_url: https://github.com/mt2pcs/genzo`、`source_revision: <作業ブランチ>` の子セッションを起こして
   `bash deploy.sh` を指示し、ユーザーが Web UI で承認する（daward の「É MOOMENTS デプロイ最終実行」
   2026-08-25 がこの方式で成功）。同じことを繰り返し試して分類器を突破しようとしない
 - 配信検証は `deploy.sh` の 3/4 が行う（/healthz と /api/getProject）。URL は完了時に表示される
