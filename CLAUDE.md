@@ -80,3 +80,5 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
   セッションから `bash deploy.sh` で直接 Secret Manager へ書く道は auto モードの分類器に止められる（default モードなら通る）
 - 切替後の確認は `curl -u genzo:genzo -X POST <URL>/api/admin/llmPing`（プロジェクトに触らず LLM に一言返させる）と
   `/api/health` の `llm` 欄。それから画面で 1 件生成して見る
+- **OpenAI 切替は 2026-09-03 に完了・実測済み**（ユーザーが Secret Manager に `openai-api-key` を作成 → run #12 で
+  `--set-secrets` 配備 → `llmPing` が pong、画面から「夜凪」vLo の世界観ボードを実生成して 38 秒で表示を確認）
