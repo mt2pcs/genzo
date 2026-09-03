@@ -1,0 +1,44 @@
+# push したら自動で Cloud Run にデプロイする。
+# 目的: デプロイを Claude Code のセッション（権限モード・分類器の状態）から切り離す。
+#       どのセッションからでも push するだけで反映される。
+#
+# 一度だけ必要な設定（GitHub → リポジトリ → Settings → Secrets and variables → Actions → New repository secret）:
+#   GCP_SA_KEY … Cloud Run にデプロイするサービスアカウントのキー JSON（love-coach-deployer のもの。
+#                外側の {} が欠けた形でも deploy.sh が補う）
+# 任意の variables（Settings → Secrets and variables → Actions → Variables）:
+#   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_BASIC_AUTH / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_IMAGE_MODEL
+#   （未設定なら deploy.sh の既定値。PROJECT_ID は鍵から自動判定）
+name: deploy
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore: ['README.md', 'CLAUDE.md', 'scripts/**', 'test/**']
+  workflow_dispatch: {}
+
+concurrency:
+  group: cloud-run-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cloud Run へデプロイ（deploy.sh が gcloud 認証・バケット・権限・デプロイ・配信検証まで行う）
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          REGION: ${{ vars.REGION }}
+          SERVICE: ${{ vars.SERVICE }}
+          GCS_BUCKET: ${{ vars.GCS_BUCKET }}
+          APP_BASIC_AUTH: ${{ vars.APP_BASIC_AUTH }}
+          VERTEX_LOCATION: ${{ vars.VERTEX_LOCATION }}
+          VERTEX_MODEL: ${{ vars.VERTEX_MODEL }}
+          VERTEX_IMAGE_MODEL: ${{ vars.VERTEX_IMAGE_MODEL }}
+        run: |
+          if [ -z "$GCP_SA_KEY" ]; then
+            echo "::error::GCP_SA_KEY secret が未設定です（リポジトリの Settings → Secrets and variables → Actions）"; exit 1
+          fi
+          bash deploy.sh
