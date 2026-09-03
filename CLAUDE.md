@@ -69,8 +69,14 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 - **LLM はユーザーの指示で OpenAI に戻した（2026-09-03。GAS 版と同じ OPENAI_API_KEY / gpt-5.5 / gpt-image 系）**。
   切替は `deploy.sh` が `OPENAI_API_KEY` の有無で判定する（GitHub の Secret `OPENAI_API_KEY` を設定すれば次の push から openai）。
   Vertex AI の経路（`LLM_PROVIDER=vertex`）はコードに残してある。モデル名は環境変数で差し替え、コードに固定しない
-- **この Claude Code 環境には `OPENAI_API_KEY` も設定済み**（2026-09-03 確認。ローカル起動の `llmPing` が実際に応答した）。
-  ただし本番へ渡すのは GitHub Actions なので、GitHub 側の Secret `OPENAI_API_KEY` が別途必要（ユーザーが一度だけ設定）。
-  セッションから `bash deploy.sh` で直接渡す道は auto モードの分類器に止められる
+- **OpenAI キーの正本は GCP Secret Manager `openai-api-key`（プロジェクト love-coach-sprint0）**。`deploy.sh` が
+  それを `--set-secrets` で Cloud Run に渡すので、GitHub の Secret はリポジトリごとに要らない（`GCP_SA_KEY` だけ）。
+  同じプロジェクトの他アプリも同じ秘密を参照すればよい（`gcloud run deploy --set-secrets OPENAI_API_KEY=openai-api-key:latest`）。
+  初回登録は (a) GCP コンソールの Secret Manager で `openai-api-key` を作る、または (b) どこか 1 リポジトリの GitHub Secret に
+  `OPENAI_API_KEY` を一度置いて push する（deploy.sh が Secret Manager へ書き込む。書き込み後は消してよい）
+- GitHub 側の横断設定は無い: `mt2pcs` は個人アカウントで、アカウント横断の Actions Secret は存在しない（2026-09-03 に docs で確認）。
+  Organization Secret は組織アカウントのみで、GitHub Free ではプライベートリポジトリから参照できない
+- この Claude Code 環境には `OPENAI_API_KEY` も設定済み（ローカル起動の `llmPing` が実際に応答した）。
+  セッションから `bash deploy.sh` で直接 Secret Manager へ書く道は auto モードの分類器に止められる（default モードなら通る）
 - 切替後の確認は `curl -u genzo:genzo -X POST <URL>/api/admin/llmPing`（プロジェクトに触らず LLM に一言返させる）と
   `/api/health` の `llm` 欄。それから画面で 1 件生成して見る

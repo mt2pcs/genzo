@@ -10,8 +10,12 @@
 # 使い方:
 #   bash deploy.sh
 #   PROJECT_ID=xxx GCS_BUCKET=yyy REGION=asia-northeast1 SERVICE=genzo bash deploy.sh
-# 任意: LLM_PROVIDER(openai | vertex。未指定なら OPENAI_API_KEY があれば openai、無ければ vertex)
+# 任意: LLM_PROVIDER(openai | vertex。未指定なら OpenAI のキーが使えれば openai、無ければ vertex)
 #       OPENAI_API_KEY OPENAI_MODEL(既定 gpt-5.5) OPENAI_IMAGE_MODEL(既定 gpt-image-2) OPENAI_BASE_URL — GAS 版と同じ設定
+#       OPENAI_SECRET_NAME(既定 openai-api-key): OpenAI キーの置き場は GCP Secret Manager（プロジェクト横断で 1 回だけ設定）。
+#         - OPENAI_API_KEY が環境にあれば Secret Manager に書き込む（無ければ作成、値が変わっていれば新版を追加）
+#         - 無くても Secret Manager に既にあれば、それを Cloud Run に --set-secrets で渡す
+#         → GitHub の Secret はリポジトリごとに要らない。どのアプリも同じ秘密を参照する
 #       VERTEX_LOCATION(既定 global) VERTEX_MODEL VERTEX_IMAGE_MODEL VERTEX_IMAGE_LOCATION
 #       APP_PASSWORD(入室パスワード、既定 genzo) ALLOW_UNAUTH(既定 1 = Cloud Run は公開・パスワードで保護)
 #       RUNTIME_SA(実行サービスアカウント。未指定なら作成を試み、権限がなければ既定のコンピュート SA を使う)
@@ -106,17 +110,11 @@ ALLOW_UNAUTH="${ALLOW_UNAUTH:-1}"
 OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.5}"
 OPENAI_IMAGE_MODEL="${OPENAI_IMAGE_MODEL:-gpt-image-2}"
 OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
-if [ -z "${LLM_PROVIDER:-}" ]; then
-  if [ -n "${OPENAI_API_KEY:-}" ]; then LLM_PROVIDER=openai; else LLM_PROVIDER=vertex; fi
-fi
-if [ "$LLM_PROVIDER" = "openai" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
-  echo "エラー: LLM_PROVIDER=openai だが OPENAI_API_KEY が無い（GitHub の Secret か環境変数に設定する）" >&2; exit 1
-fi
+OPENAI_SECRET_NAME="${OPENAI_SECRET_NAME:-openai-api-key}"
 echo "   account=${ACCOUNT} project=${PROJECT_ID} region=${REGION} service=${SERVICE} bucket=gs://${GCS_BUCKET}"
-echo "   llm=${LLM_PROVIDER} $([ "$LLM_PROVIDER" = openai ] && echo "${OPENAI_MODEL} / ${OPENAI_IMAGE_MODEL}" || echo "${VERTEX_MODEL} / ${VERTEX_IMAGE_MODEL}")"
 
 echo "== 1/4 API・バケット・実行サービスアカウント（権限が無い項目は警告して続行） =="
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com drive.googleapis.com >/dev/null 2>&1 \
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com drive.googleapis.com secretmanager.googleapis.com >/dev/null 2>&1 \
   || echo "   警告: API の有効化に失敗（既に有効か、serviceusage の権限なし）。続行する"
 
 if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" >/dev/null 2>&1; then
@@ -126,8 +124,9 @@ fi
 
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)' 2>/dev/null || true)"
 SA_FLAG=()
+RUNTIME_SA_EMAIL=""
 if [ -n "${RUNTIME_SA:-}" ]; then
-  SA_FLAG=(--service-account "$RUNTIME_SA")
+  SA_FLAG=(--service-account "$RUNTIME_SA"); RUNTIME_SA_EMAIL="$RUNTIME_SA"
 else
   SA_NAME="genzo-run"
   SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -135,7 +134,7 @@ else
      || gcloud iam service-accounts create "$SA_NAME" --display-name="GENZO Cloud Run" >/dev/null 2>&1; then
     if gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA}" --role="roles/aiplatform.user" --condition=None >/dev/null 2>&1 \
        && gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" --member="serviceAccount:${SA}" --role="roles/storage.objectAdmin" >/dev/null 2>&1; then
-      SA_FLAG=(--service-account "$SA")
+      SA_FLAG=(--service-account "$SA"); RUNTIME_SA_EMAIL="$SA"
       echo "   実行SA: ${SA}（Vertex AI User + バケットの Object Admin）"
     else
       echo "   警告: ${SA} への権限付与ができないため、既定のコンピュート SA で実行する"
@@ -144,7 +143,7 @@ else
     echo "   警告: 実行用サービスアカウントを作成できないため、既定のコンピュート SA で実行する"
   fi
   if [ ${#SA_FLAG[@]} -eq 0 ] && [ -n "$PROJECT_NUMBER" ]; then
-    DEFAULT_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+    DEFAULT_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"; RUNTIME_SA_EMAIL="$DEFAULT_SA"
     gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" --member="serviceAccount:${DEFAULT_SA}" --role="roles/storage.objectAdmin" >/dev/null 2>&1 \
       || echo "   警告: 既定SA(${DEFAULT_SA})へバケット権限を付与できない（Editor 権限があれば不要）"
     gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${DEFAULT_SA}" --role="roles/aiplatform.user" --condition=None >/dev/null 2>&1 \
@@ -152,11 +151,53 @@ else
   fi
 fi
 
+# OpenAI キー: Secret Manager を正とする（プロジェクト内の全アプリで共有。GitHub の Secret はリポジトリごとに要らない）
+OPENAI_SECRET_OK=0
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  if ! gcloud secrets describe "$OPENAI_SECRET_NAME" >/dev/null 2>&1; then
+    gcloud secrets create "$OPENAI_SECRET_NAME" --replication-policy=automatic >/dev/null 2>&1 \
+      && echo "   Secret Manager: ${OPENAI_SECRET_NAME} を作成" \
+      || echo "   警告: Secret Manager に ${OPENAI_SECRET_NAME} を作成できない（権限）。今回は環境変数で渡す"
+  fi
+  if gcloud secrets describe "$OPENAI_SECRET_NAME" >/dev/null 2>&1; then
+    CUR="$(gcloud secrets versions access latest --secret="$OPENAI_SECRET_NAME" 2>/dev/null || true)"
+    if [ "$CUR" != "$OPENAI_API_KEY" ]; then
+      printf %s "$OPENAI_API_KEY" | gcloud secrets versions add "$OPENAI_SECRET_NAME" --data-file=- >/dev/null 2>&1 \
+        && echo "   Secret Manager: ${OPENAI_SECRET_NAME} に新しい版を追加" \
+        || echo "   警告: ${OPENAI_SECRET_NAME} に版を追加できない（権限）"
+    fi
+    [ "$(gcloud secrets versions access latest --secret="$OPENAI_SECRET_NAME" 2>/dev/null || true)" = "$OPENAI_API_KEY" ] && OPENAI_SECRET_OK=1
+  fi
+elif gcloud secrets versions access latest --secret="$OPENAI_SECRET_NAME" >/dev/null 2>&1; then
+  OPENAI_SECRET_OK=1
+  echo "   Secret Manager: ${OPENAI_SECRET_NAME} を使う（環境に OPENAI_API_KEY は無いが既に登録済み）"
+fi
+if [ "$OPENAI_SECRET_OK" = 1 ] && [ -n "$RUNTIME_SA_EMAIL" ]; then
+  gcloud secrets add-iam-policy-binding "$OPENAI_SECRET_NAME" --member="serviceAccount:${RUNTIME_SA_EMAIL}" --role="roles/secretmanager.secretAccessor" >/dev/null 2>&1 || true
+  if ! gcloud secrets get-iam-policy "$OPENAI_SECRET_NAME" --format=json 2>/dev/null | grep -q "serviceAccount:${RUNTIME_SA_EMAIL}"; then
+    if [ -n "${OPENAI_API_KEY:-}" ]; then
+      echo "   警告: ${RUNTIME_SA_EMAIL} に ${OPENAI_SECRET_NAME} の読み取り権限を付与できない。今回は環境変数で渡す"; OPENAI_SECRET_OK=0
+    else
+      echo "   警告: ${RUNTIME_SA_EMAIL} に ${OPENAI_SECRET_NAME} の読み取り権限が無い。GCP コンソールで Secret Manager → ${OPENAI_SECRET_NAME} → 権限 に Secret Accessor を付与すること"
+    fi
+  fi
+fi
+
+if [ -z "${LLM_PROVIDER:-}" ]; then
+  if [ "$OPENAI_SECRET_OK" = 1 ] || [ -n "${OPENAI_API_KEY:-}" ]; then LLM_PROVIDER=openai; else LLM_PROVIDER=vertex; fi
+fi
+if [ "$LLM_PROVIDER" = "openai" ] && [ "$OPENAI_SECRET_OK" != 1 ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+  echo "エラー: LLM_PROVIDER=openai だが OpenAI のキーが無い（Secret Manager の ${OPENAI_SECRET_NAME} か環境変数 OPENAI_API_KEY）" >&2; exit 1
+fi
+echo "   llm=${LLM_PROVIDER} $([ "$LLM_PROVIDER" = openai ] && echo "${OPENAI_MODEL} / ${OPENAI_IMAGE_MODEL} (キー: $([ "$OPENAI_SECRET_OK" = 1 ] && echo "Secret Manager/${OPENAI_SECRET_NAME}" || echo 環境変数))" || echo "${VERTEX_MODEL} / ${VERTEX_IMAGE_MODEL}")"
+
 echo "== 2/4 Cloud Run デプロイ (project=${PROJECT_ID}, service=${SERVICE}, region=${REGION}) =="
 # 区切り文字を ^|^ にして、値にカンマや URL が含まれても壊れないようにする
 ENV_VARS="^|^STORAGE=gcs|GCS_BUCKET=${GCS_BUCKET}|GCS_PREFIX=genzo/|LLM_PROVIDER=${LLM_PROVIDER}|VERTEX_PROJECT=${PROJECT_ID}|VERTEX_LOCATION=${VERTEX_LOCATION}|VERTEX_MODEL=${VERTEX_MODEL}|VERTEX_IMAGE_MODEL=${VERTEX_IMAGE_MODEL}|VERTEX_IMAGE_LOCATION=${VERTEX_IMAGE_LOCATION}"
 ENV_VARS="${ENV_VARS}|OPENAI_MODEL=${OPENAI_MODEL}|OPENAI_IMAGE_MODEL=${OPENAI_IMAGE_MODEL}|OPENAI_BASE_URL=${OPENAI_BASE_URL}"
-if [ -n "${OPENAI_API_KEY:-}" ]; then ENV_VARS="${ENV_VARS}|OPENAI_API_KEY=${OPENAI_API_KEY}"; fi
+SECRET_FLAG=(--clear-secrets)
+if [ "$OPENAI_SECRET_OK" = 1 ]; then SECRET_FLAG=(--set-secrets "OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest")
+elif [ -n "${OPENAI_API_KEY:-}" ]; then ENV_VARS="${ENV_VARS}|OPENAI_API_KEY=${OPENAI_API_KEY}"; fi
 if [ -n "$APP_PASSWORD" ]; then ENV_VARS="${ENV_VARS}|APP_PASSWORD=${APP_PASSWORD}"; fi
 AUTH_FLAG="--no-allow-unauthenticated"
 if [ "$ALLOW_UNAUTH" = "1" ]; then AUTH_FLAG="--allow-unauthenticated"; fi
@@ -171,6 +212,7 @@ gcloud run deploy "$SERVICE" \
   --concurrency 40 \
   --min-instances 0 --max-instances 1 \
   --set-env-vars "$ENV_VARS" \
+  "${SECRET_FLAG[@]}" \
   $AUTH_FLAG
 
 echo "== 3/4 配信検証 =="

@@ -69,7 +69,7 @@ PROJECT_ID=<your-project> GCS_BUCKET=<bucket-name> ./deploy.sh
 | `GCS_BUCKET` | (必須) | プロジェクト JSON と画像の保存先 |
 | `GCS_PREFIX` | `genzo/` | バケット内のプレフィックス |
 | `LLM_PROVIDER` | `openai`（`OPENAI_API_KEY` があるとき。無ければ `vertex`） | `openai`（GAS 版と同じ OpenAI 互換 API）または `vertex` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_IMAGE_MODEL` / `OPENAI_BASE_URL` | — / `gpt-5.5` / `gpt-image-2` / `https://api.openai.com/v1` | GAS 版のスクリプトプロパティと同じ |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_IMAGE_MODEL` / `OPENAI_BASE_URL` | — / `gpt-5.5` / `gpt-image-2` / `https://api.openai.com/v1` | GAS 版のスクリプトプロパティと同じ。キーの正本は GCP Secret Manager の `openai-api-key`（`deploy.sh` が `--set-secrets` で渡す。環境変数にあれば Secret Manager へ登録する） |
 | `VERTEX_PROJECT` | ADC から取得 | Vertex AI のプロジェクト |
 | `VERTEX_LOCATION` | `global` | Gemini のロケーション |
 | `VERTEX_MODEL` | `gemini-2.5-pro` | テキスト・画像理解・JSON 生成・グラウンディングに使うモデル |

@@ -5,8 +5,9 @@
 # 一度だけ必要な設定（GitHub → リポジトリ → Settings → Secrets and variables → Actions → New repository secret）:
 #   GCP_SA_KEY … Cloud Run にデプロイするサービスアカウントのキー JSON（love-coach-deployer のもの。
 #                外側の {} が欠けた形でも deploy.sh が補う）
-#   OPENAI_API_KEY … LLM を OpenAI で使うときの API キー（GAS 版のスクリプトプロパティ OPENAI_API_KEY と同じ値）。
-#                    これがあれば deploy.sh は LLM_PROVIDER=openai で配備する（無ければ Vertex AI）
+#   OPENAI_API_KEY … 任意。OpenAI キーの正本は GCP Secret Manager（プロジェクト love-coach-sprint0 の openai-api-key）で、
+#                    deploy.sh はそれを Cloud Run に渡す。ここに置くと deploy.sh が Secret Manager へ書き込む（初回の登録に使える）。
+#                    Secret Manager にも無ければ Vertex AI で配備する
 #   APP_PASSWORD … 入室パスワード（任意。未設定なら deploy.sh の既定 genzo）
 # 任意の variables（Settings → Secrets and variables → Actions → Variables）:
 #   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_PASSWORD / LLM_PROVIDER / OPENAI_MODEL / OPENAI_IMAGE_MODEL / OPENAI_BASE_URL
