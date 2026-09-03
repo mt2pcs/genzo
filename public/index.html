@@ -524,6 +524,7 @@ function gs(fn){
     .then(function(resp){
       return resp.text().then(function(txt){
         var j=null; try{ j=JSON.parse(txt); }catch(e){}
+        if(resp.status===401){ location.href='/login?next='+encodeURIComponent(location.pathname+location.search); throw new Error('ログインが必要です'); }
         if(!j){ throw new Error('サーバ応答を解釈できません (HTTP '+resp.status+'): '+txt.slice(0,160)); }
         if(!j.ok){ throw new Error(j.error||('HTTP '+resp.status)); }
         return j.result;

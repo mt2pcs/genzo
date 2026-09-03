@@ -1,0 +1,63 @@
+'use strict';
+/* GENZO の Express アプリ本体（index.js が listen する。テストはこのモジュールを直接使う）。
+   - GET  /                 : public/index.html（GAS の doGet に相当）
+   - GET  /login, /logout   : ログイン画面（APP_BASIC_AUTH 設定時のみ。server/auth.js）
+   - POST /api/:fn          : google.script.run の代替。body={args:[...]} → {ok:true,result} / {ok:false,error}
+   - GET  /files/:name      : 保存画像の直接配信（任意利用）
+   - GET  /healthz          : ヘルスチェック */
+var path = require('path');
+var express = require('express');
+var cfg = require('./config');
+var genzo = require('./genzo');
+var storage = require('./storage');
+var llm = require('./llm');
+var auth = require('./auth').create({ basicAuth: cfg.basicAuth, sessionSecret: cfg.sessionSecret });
+
+var app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', true);
+
+app.get('/healthz', function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV, auth: auth.enabled ? 'login' : 'none' }); });
+
+auth.routes(app, express);
+app.use(auth.middleware);
+
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: 'index.html', maxAge: 0, etag: true }));
+
+/* 添付資料（analyzeStyleAssets）は base64 で最大 9MB 程度 → 余裕をもって 64MB */
+app.use('/api', express.json({ limit: '64mb' }));
+
+app.post('/api/:fn', async function(req, res){
+  var fn = req.params.fn;
+  var impl = genzo.API[fn];
+  if (!impl){ res.status(404).json({ ok: false, error: '未知の関数: ' + fn }); return; }
+  var args = (req.body && Array.isArray(req.body.args)) ? req.body.args : [];
+  var t0 = Date.now();
+  try {
+    var result = await impl.apply(null, args);
+    if (result === undefined) result = null;
+    res.json({ ok: true, result: result });
+    console.log('[api] ' + fn + ' ok ' + (Date.now() - t0) + 'ms');
+  } catch(e){
+    var msg = (e && e.message) || String(e);
+    console.error('[api] ' + fn + ' failed ' + (Date.now() - t0) + 'ms: ' + msg);
+    if (e && e.stack && !(e.expected)) console.error(e.stack);
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+app.get('/files/:name', async function(req, res){
+  try {
+    var f = await genzo.readFile(req.params.name);
+    if (!f){ res.status(404).send('not found'); return; }
+    res.set('Content-Type', f.mime); res.set('Cache-Control', 'private, max-age=3600');
+    res.send(f.buffer);
+  } catch(e){ res.status(400).send((e && e.message) || 'error'); }
+});
+
+app.use(function(err, req, res, next){ // eslint-disable-line no-unused-vars
+  console.error('[server] ' + ((err && err.stack) || err));
+  res.status(err && err.type === 'entity.too.large' ? 413 : 500).json({ ok: false, error: (err && err.message) || 'server error' });
+});
+
+module.exports = app;

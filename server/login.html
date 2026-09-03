@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>GENZO — ログイン</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#F7F7F9; --surface:#FFFFFF; --panel:#FBFBFD;
+  --ink:#17171A; --ink2:#4B4B52; --mute:#82828C; --faint:#B8B8C2;
+  --line:#E7E7EC; --lineS:#EFEFF3;
+  --acc:#5E5CE6; --accSoft:#EEEEFC; --accInk:#3F3DBB;
+  --danger:#DE4B4B;
+  --disp:'Instrument Sans','Noto Sans JP',sans-serif;
+  --body:'Noto Sans JP','Instrument Sans',-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sh2:0 4px 12px rgba(20,20,30,.08),0 16px 48px rgba(20,20,30,.12);
+  --spring:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);font-size:13.5px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  display:grid;place-items:center;padding:24px;
+  background-image:radial-gradient(1200px 600px at 20% -10%,#EEEEFC 0%,transparent 60%),radial-gradient(900px 500px at 110% 110%,#F1F1F7 0%,transparent 60%)}
+::selection{background:var(--acc);color:#fff}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.card{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh2);padding:34px 34px 28px;animation:rise .5s var(--spring) both}
+.logo{font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:-.035em;line-height:1}
+.logo i{font-style:normal;color:var(--acc)}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin-top:10px}
+.lead{margin-top:22px;color:var(--ink2);font-size:12.5px}
+form{margin-top:18px;display:grid;gap:12px}
+label{display:grid;gap:6px;font-size:11px;font-weight:500;color:var(--mute);letter-spacing:.04em}
+input{font-family:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 13px;outline:none;transition:border-color .15s,box-shadow .15s,background .15s}
+input:focus{border-color:var(--acc);background:#fff;box-shadow:0 0 0 4px var(--accSoft)}
+input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--panel) inset}
+button{margin-top:6px;font-family:inherit;font-size:13.5px;font-weight:700;color:#fff;background:var(--ink);border:0;border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .18s var(--spring),background .15s}
+button:hover{background:#000;transform:translateY(-1px)}
+button:active{transform:none}
+.err{margin-top:16px;padding:10px 12px;border-radius:10px;background:#FDECEC;color:var(--danger);font-size:12px;border:1px solid #F6CBCB}
+.foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--lineS);font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--faint);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo">GEN<i>Z</i>O</div>
+  <div class="eyebrow">コンセプトの現像室</div>
+  <p class="lead">共有パスワードで入室します。入室状態は30日間保持されます。</p>
+  {{ERROR}}
+  <form method="post" action="/login" autocomplete="on">
+    <input type="hidden" name="next" value="{{NEXT}}">
+    <label>ユーザー名<input name="user" value="{{USER}}" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus></label>
+    <label>パスワード<input name="pass" type="password" autocomplete="current-password" required></label>
+    <button type="submit">入室する</button>
+  </form>
+  <div class="foot"><span>RIB / サントリー</span><span>Cloud Run</span></div>
+</main>
+</body>
+</html>
