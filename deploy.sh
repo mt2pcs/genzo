@@ -10,7 +10,9 @@
 # 使い方:
 #   bash deploy.sh
 #   PROJECT_ID=xxx GCS_BUCKET=yyy REGION=asia-northeast1 SERVICE=genzo bash deploy.sh
-# 任意: VERTEX_LOCATION(既定 global) VERTEX_MODEL VERTEX_IMAGE_MODEL VERTEX_IMAGE_LOCATION
+# 任意: LLM_PROVIDER(openai | vertex。未指定なら OPENAI_API_KEY があれば openai、無ければ vertex)
+#       OPENAI_API_KEY OPENAI_MODEL(既定 gpt-5.5) OPENAI_IMAGE_MODEL(既定 gpt-image-2) OPENAI_BASE_URL — GAS 版と同じ設定
+#       VERTEX_LOCATION(既定 global) VERTEX_MODEL VERTEX_IMAGE_MODEL VERTEX_IMAGE_LOCATION
 #       APP_PASSWORD(入室パスワード、既定 genzo) ALLOW_UNAUTH(既定 1 = Cloud Run は公開・パスワードで保護)
 #       RUNTIME_SA(実行サービスアカウント。未指定なら作成を試み、権限がなければ既定のコンピュート SA を使う)
 set -euo pipefail
@@ -101,7 +103,17 @@ VERTEX_IMAGE_MODEL="${VERTEX_IMAGE_MODEL:-gemini-2.5-flash-image}"
 VERTEX_IMAGE_LOCATION="${VERTEX_IMAGE_LOCATION:-us-central1}"
 APP_PASSWORD="${APP_PASSWORD:-genzo}"
 ALLOW_UNAUTH="${ALLOW_UNAUTH:-1}"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.5}"
+OPENAI_IMAGE_MODEL="${OPENAI_IMAGE_MODEL:-gpt-image-2}"
+OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+if [ -z "${LLM_PROVIDER:-}" ]; then
+  if [ -n "${OPENAI_API_KEY:-}" ]; then LLM_PROVIDER=openai; else LLM_PROVIDER=vertex; fi
+fi
+if [ "$LLM_PROVIDER" = "openai" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+  echo "エラー: LLM_PROVIDER=openai だが OPENAI_API_KEY が無い（GitHub の Secret か環境変数に設定する）" >&2; exit 1
+fi
 echo "   account=${ACCOUNT} project=${PROJECT_ID} region=${REGION} service=${SERVICE} bucket=gs://${GCS_BUCKET}"
+echo "   llm=${LLM_PROVIDER} $([ "$LLM_PROVIDER" = openai ] && echo "${OPENAI_MODEL} / ${OPENAI_IMAGE_MODEL}" || echo "${VERTEX_MODEL} / ${VERTEX_IMAGE_MODEL}")"
 
 echo "== 1/4 API・バケット・実行サービスアカウント（権限が無い項目は警告して続行） =="
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com storage.googleapis.com drive.googleapis.com >/dev/null 2>&1 \
@@ -141,8 +153,11 @@ else
 fi
 
 echo "== 2/4 Cloud Run デプロイ (project=${PROJECT_ID}, service=${SERVICE}, region=${REGION}) =="
-ENV_VARS="STORAGE=gcs,GCS_BUCKET=${GCS_BUCKET},GCS_PREFIX=genzo/,LLM_PROVIDER=vertex,VERTEX_PROJECT=${PROJECT_ID},VERTEX_LOCATION=${VERTEX_LOCATION},VERTEX_MODEL=${VERTEX_MODEL},VERTEX_IMAGE_MODEL=${VERTEX_IMAGE_MODEL},VERTEX_IMAGE_LOCATION=${VERTEX_IMAGE_LOCATION}"
-if [ -n "$APP_PASSWORD" ]; then ENV_VARS="${ENV_VARS},APP_PASSWORD=${APP_PASSWORD}"; fi
+# 区切り文字を ^|^ にして、値にカンマや URL が含まれても壊れないようにする
+ENV_VARS="^|^STORAGE=gcs|GCS_BUCKET=${GCS_BUCKET}|GCS_PREFIX=genzo/|LLM_PROVIDER=${LLM_PROVIDER}|VERTEX_PROJECT=${PROJECT_ID}|VERTEX_LOCATION=${VERTEX_LOCATION}|VERTEX_MODEL=${VERTEX_MODEL}|VERTEX_IMAGE_MODEL=${VERTEX_IMAGE_MODEL}|VERTEX_IMAGE_LOCATION=${VERTEX_IMAGE_LOCATION}"
+ENV_VARS="${ENV_VARS}|OPENAI_MODEL=${OPENAI_MODEL}|OPENAI_IMAGE_MODEL=${OPENAI_IMAGE_MODEL}|OPENAI_BASE_URL=${OPENAI_BASE_URL}"
+if [ -n "${OPENAI_API_KEY:-}" ]; then ENV_VARS="${ENV_VARS}|OPENAI_API_KEY=${OPENAI_API_KEY}"; fi
+if [ -n "$APP_PASSWORD" ]; then ENV_VARS="${ENV_VARS}|APP_PASSWORD=${APP_PASSWORD}"; fi
 AUTH_FLAG="--no-allow-unauthenticated"
 if [ "$ALLOW_UNAUTH" = "1" ]; then AUTH_FLAG="--allow-unauthenticated"; fi
 
@@ -172,5 +187,9 @@ PROJ_OK="$(curl -sf "${AUTH_OPT[@]}" -X POST -H 'Content-Type: application/json'
 case "$PROJ_OK" in
   *'"ok":true'*) echo "   /api/getProject: ok（プロジェクトJSONを gs://${GCS_BUCKET} に初期化済み）" ;;
   *) echo "配信検証: 不合格 — /api/getProject が失敗: ${PROJ_OK}" >&2; exit 1 ;;
+esac
+case "$HEALTH" in
+  *'"llm":"'"$LLM_PROVIDER"*) echo "   llm: ${LLM_PROVIDER} で稼働" ;;
+  *) echo "配信検証: 不合格 — /api/health の llm が ${LLM_PROVIDER} でない" >&2; exit 1 ;;
 esac
 echo "== 4/4 完了。${LIVE_URL} を開く（入室パスワードは APP_PASSWORD） =="

@@ -66,4 +66,8 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 - `npm test`（LLM モックの通しテスト）と `npm run check`（構文）を push 前に通す
 - 画面とサーバのバージョン整合は `public/index.html` の `UI_REV` と `server/genzo.js` の `SEED_REV`。
   シードを直したら両方を同じ数字に上げる
-- Vertex AI のモデルは環境変数（`VERTEX_MODEL` / `VERTEX_IMAGE_MODEL`）で差し替える。コードに固定しない
+- **LLM はユーザーの指示で OpenAI に戻した（2026-09-03。GAS 版と同じ OPENAI_API_KEY / gpt-5.5 / gpt-image 系）**。
+  切替は `deploy.sh` が `OPENAI_API_KEY` の有無で判定する（GitHub の Secret `OPENAI_API_KEY` を設定すれば次の push から openai）。
+  Vertex AI の経路（`LLM_PROVIDER=vertex`）はコードに残してある。モデル名は環境変数で差し替え、コードに固定しない
+- 切替後の確認は `curl -u genzo:genzo -X POST <URL>/api/admin/llmPing`（プロジェクトに触らず LLM に一言返させる）と
+  `/api/health` の `llm` 欄。それから画面で 1 件生成して見る

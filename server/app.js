@@ -43,6 +43,15 @@ app.post('/api/admin/importFromDrive', async function(req, res){
   }
 });
 
+/* 接続確認: LLM に一言返させる（プロジェクトには触らない。プロバイダ切替やキー設定の後に叩く） */
+app.post('/api/admin/llmPing', async function(req, res){
+  var t0 = Date.now();
+  try {
+    var text = await llm.chat([{ role: 'user', content: '「pong」とだけ返答してください。' }], { maxTokens: 20 });
+    res.json({ ok: true, result: { llm: llm.describe(), reply: String(text).slice(0, 100), ms: Date.now() - t0 } });
+  } catch(e){ res.status(500).json({ ok: false, error: (e && e.message) || String(e), llm: llm.describe() }); }
+});
+
 app.post('/api/:fn', async function(req, res){
   var fn = req.params.fn;
   var impl = genzo.API[fn];

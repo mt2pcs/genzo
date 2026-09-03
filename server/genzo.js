@@ -359,7 +359,7 @@ var ASSISTANT_GUIDE = [
 '',
 '◆ 運用・トラブルシュート',
 '・画面上部に黒帯の警告が出たらサーバ（server/genzo.js）と画面（public/index.html）のバージョン不一致。両方を含む最新のイメージを Cloud Run に再デプロイする。',
-'・接続設定: 環境変数 LLM_PROVIDER（vertex／openai）、VERTEX_PROJECT・VERTEX_LOCATION・VERTEX_MODEL・VERTEX_IMAGE_MODEL、保存先 GCS_BUCKET（Cloud Run のサービスアカウントに Vertex AI User と Storage Object Admin が必要）。',
+'・接続設定: 環境変数 LLM_PROVIDER（openai／vertex）。openai は OPENAI_API_KEY・OPENAI_MODEL・OPENAI_IMAGE_MODEL（GAS 版と同じ）、vertex は VERTEX_PROJECT・VERTEX_LOCATION・VERTEX_MODEL・VERTEX_IMAGE_MODEL、保存先 GCS_BUCKET（Cloud Run のサービスアカウントに Vertex AI User と Storage Object Admin が必要）。',
 '・生成が遅い: 新方向は2〜6分、派生は1〜3分が正常。画像の現像は版ごとに「生成する」か一括画像化。',
 '・裁定待ちセルは動作の前提ではなく精度の上積み。確定するほど王道・性格軸・模倣検知が締まる。'
 ].join('\n');

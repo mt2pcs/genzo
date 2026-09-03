@@ -5,10 +5,12 @@
 # 一度だけ必要な設定（GitHub → リポジトリ → Settings → Secrets and variables → Actions → New repository secret）:
 #   GCP_SA_KEY … Cloud Run にデプロイするサービスアカウントのキー JSON（love-coach-deployer のもの。
 #                外側の {} が欠けた形でも deploy.sh が補う）
+#   OPENAI_API_KEY … LLM を OpenAI で使うときの API キー（GAS 版のスクリプトプロパティ OPENAI_API_KEY と同じ値）。
+#                    これがあれば deploy.sh は LLM_PROVIDER=openai で配備する（無ければ Vertex AI）
 #   APP_PASSWORD … 入室パスワード（任意。未設定なら deploy.sh の既定 genzo）
 # 任意の variables（Settings → Secrets and variables → Actions → Variables）:
-#   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_PASSWORD / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_IMAGE_MODEL
-#   （未設定なら deploy.sh の既定値。PROJECT_ID は鍵から自動判定）
+#   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_PASSWORD / LLM_PROVIDER / OPENAI_MODEL / OPENAI_IMAGE_MODEL / OPENAI_BASE_URL
+#   / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_IMAGE_MODEL（未設定なら deploy.sh の既定値。PROJECT_ID は鍵から自動判定）
 name: deploy
 
 on:
@@ -35,6 +37,11 @@ jobs:
           SERVICE: ${{ vars.SERVICE }}
           GCS_BUCKET: ${{ vars.GCS_BUCKET }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD || vars.APP_PASSWORD }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
           VERTEX_LOCATION: ${{ vars.VERTEX_LOCATION }}
           VERTEX_MODEL: ${{ vars.VERTEX_MODEL }}
           VERTEX_IMAGE_MODEL: ${{ vars.VERTEX_IMAGE_MODEL }}
