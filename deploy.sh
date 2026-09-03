@@ -125,11 +125,15 @@ echo "== 3/4 配信検証 =="
 LIVE_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
 AUTH_OPT=()
 if [ -n "$APP_BASIC_AUTH" ]; then AUTH_OPT=(-u "$APP_BASIC_AUTH"); fi
-HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/healthz" || true)"
-echo "   /healthz: ${HEALTH:-(応答なし)}"
+# Claude Code クラウド環境の agent proxy は "/healthz" というパスを横取りして Google 風の 404 を返す（2026-09-03 確認。
+# 応答に x-cloud-trace-context が無いのが見分け方）。そのため /api/healthz を優先し、/healthz は予備。
+# 旧リビジョン（/api/healthz 未実装）+ proxy 横取りの組み合わせでは両方失敗するので、
+# ヘルスチェックは警告に留め、合否は /api/getProject で決める
+HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/api/healthz" || curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/healthz" || true)"
+echo "   healthz: ${HEALTH:-(応答なし)}"
 case "$HEALTH" in
   *'"ok":true'*) ;;
-  *) echo "配信検証: 不合格 — /healthz が ok を返さない" >&2; exit 1 ;;
+  *) echo "   警告: healthz が ok を返さない（クラウドセッションでは proxy が /healthz を横取りする。/api/getProject で判定する）" ;;
 esac
 PROJ_OK="$(curl -sf "${AUTH_OPT[@]}" -X POST -H 'Content-Type: application/json' -d '{"args":[]}' "${LIVE_URL}/api/getProject" | head -c 200 || true)"
 case "$PROJ_OK" in

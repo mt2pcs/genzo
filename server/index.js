@@ -19,14 +19,16 @@ app.set('trust proxy', true);
 if (cfg.basicAuth){
   var expected = 'Basic ' + Buffer.from(cfg.basicAuth).toString('base64');
   app.use(function(req, res, next){
-    if (req.path === '/healthz') return next();
+    if (req.path === '/healthz' || req.path === '/api/healthz') return next();
     if (req.headers.authorization === expected) return next();
     res.set('WWW-Authenticate', 'Basic realm="GENZO"');
     res.status(401).send('Authentication required');
   });
 }
 
-app.get('/healthz', function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV }); });
+/* /api/healthz は /healthz の別名。Claude Code クラウド環境の agent proxy が /healthz を横取りして 404 を返すため、
+   deploy.sh の配信検証はこちらを使う */
+app.get(['/healthz', '/api/healthz'], function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV }); });
 
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: 'index.html', maxAge: 0, etag: true }));
 

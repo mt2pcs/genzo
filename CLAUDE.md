@@ -36,7 +36,13 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
   `source_url: https://github.com/mt2pcs/genzo`、`source_revision: <作業ブランチ>` の子セッションを起こして
   `bash deploy.sh` を指示し、ユーザーが Web UI で承認する（daward の「É MOOMENTS デプロイ最終実行」
   2026-08-25 がこの方式で成功）。同じことを繰り返し試して分類器を突破しようとしない
-- 配信検証は `deploy.sh` の 3/4 が行う（/healthz と /api/getProject）。URL は完了時に表示される
+- **本番 URL: https://genzo-1066908065074.asia-northeast1.run.app**（プロジェクト番号 1066908065074。Cloud Run の
+  決定的 URL 形式 `https://<service>-<project番号>.<region>.run.app`。同プロジェクトの他アプリも同じ番号）。
+  2026-09-03 に main 環境の子セッションから `bash deploy.sh` でデプロイ成功
+- 配信検証は `deploy.sh` の 3/4 が行う（/api/healthz → /healthz、/api/getProject）。URL は完了時に表示される
+- **クラウドセッションの agent proxy は `/healthz` というパスを横取りして Google 風 404 を返す**（応答に
+  x-cloud-trace-context も `server: Google Frontend` も無いのが見分け方）。サービス側の故障ではない。
+  手で確かめるときは `curl -u genzo:genzo -X POST -H 'Content-Type: application/json' -d '{"args":[]}' <URL>/api/getProject`
 
 ## 開発
 
