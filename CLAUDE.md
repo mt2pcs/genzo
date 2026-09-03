@@ -51,7 +51,11 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
   有効化前は 403 だった）。取れないときだけ `FILES_JSON=` で一覧を渡す。一覧は Google Drive MCP の `search_files`
   （`parentId = '<フォルダID>'`、pageSize 1000）で 1 ページに全件取れる。画像本体を MCP で運ぼうとしない（1 枚 2.3MB × 466）
 - このセッション環境の headless Chromium は HTTPS を外に出せない（プロキシ経由でも `ERR_CONNECTION_RESET`。2026-09-03 に確認）。
-  本番の確認は curl で `/api/getProject` `/api/getThumbs` `/files/<name>` を叩く（ローカルの画面確認は Playwright で可）
+  **本番の画面を自分の目で見るには `node scripts/preview-live.js` を立てて Playwright で `http://127.0.0.1:18090` を開く**
+  （画面はローカル配信、/api と /files だけ本番へ中継。Playwright は `NODE_PATH="$(npm root -g)"` で解決、
+  `executablePath: '/opt/pw-browsers/chromium'`）。「表示されない」と言われたら API の数字だけで答えず、これで画面を見てから答える
+- 移行直後の画面が空に見えたのは、GAS 版で最後に開いていたコンセプト「青炎」に方向が無く、タブ設定で 16 中 11 コンセプトが
+  非表示だったため（どちらも GAS 版の状態がそのまま引き継がれたもの）。データは消えていなかった（2026-09-03）
 
 ## 開発
 
