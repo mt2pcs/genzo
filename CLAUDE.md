@@ -45,8 +45,13 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
 - 移行は `scripts/import-from-drive.sh <フォルダID> <アプリURL> <パスワード>`（アプリの `/api/admin/importFromDrive` を
   残数 0 まで繰り返す。既存はスキップ、最後に project JSON を差し替え、旧 JSON は `backups/` に退避）。
   このセッション環境からそのまま実行できる（curl とパスワードだけ。GCS 認証は不要）
-- Drive の一覧は Google Drive MCP の `search_files`（`parentId = '<フォルダID>'`、pageSize 1000）で 1 ページに全件取れる。
-  画像本体を MCP で運ぼうとしない（1 枚 2.3MB × 466）
+- **移行は 2026-09-03 に実施済み**（画像 466 枚、53 方向・171 版・457 ビジュアル。差し替え前の初期 JSON は
+  `backups/genzo_project.2026-09-03T04-05-27-891Z.json`）。再実行しても既存はスキップされるので安全
+- 実行 SA（既定のコンピュート SA）から Drive API でフォルダ一覧が取れる（`deploy.sh` が `drive.googleapis.com` を有効化済み。
+  有効化前は 403 だった）。取れないときだけ `FILES_JSON=` で一覧を渡す。一覧は Google Drive MCP の `search_files`
+  （`parentId = '<フォルダID>'`、pageSize 1000）で 1 ページに全件取れる。画像本体を MCP で運ぼうとしない（1 枚 2.3MB × 466）
+- このセッション環境の headless Chromium は HTTPS を外に出せない（プロキシ経由でも `ERR_CONNECTION_RESET`。2026-09-03 に確認）。
+  本番の確認は curl で `/api/getProject` `/api/getThumbs` `/files/<name>` を叩く（ローカルの画面確認は Playwright で可）
 
 ## 開発
 
