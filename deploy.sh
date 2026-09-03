@@ -41,15 +41,30 @@ if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/nu
 import sys, os, json, re
 s = os.environ.get('GCP_SA_KEY', '').strip()
 s = re.sub(r'^(export\s+)?GCP_SA_KEY\s*=\s*', '', s).strip()
-for q in ("'", '"'):
-    if s.startswith(q) and s.endswith(q) and not s.startswith('"type'):
-        s = s[1:-1].strip()
+if s.startswith("'") or (s.startswith('"') and not s.startswith('"type')):
+    s = s[1:].strip()
 if not s.startswith('{'):
     s = '{' + s + '}'
-try:
-    d = json.loads(s, strict=False)  # strict=False: 秘密鍵内の生改行を許容
-except Exception as e:
-    sys.stderr.write('GCP_SA_KEY を JSON として読めません: %s（先頭12文字: %r、長さ %d）\n' % (e, s[:12], len(s)))
+d = None
+for _ in range(6):  # 末尾に付いた引用符や別の環境変数行などの余分を、解析エラー位置で切り落として再試行
+    try:
+        d = json.loads(s, strict=False)  # strict=False: 秘密鍵内の生改行を許容
+        break
+    except json.JSONDecodeError as e:
+        pos = e.pos
+        if pos <= 1:
+            break
+        if e.msg.startswith('Extra data'):
+            s = s[:pos].rstrip()
+        elif e.msg.startswith('Expecting'):
+            s = s[:pos].rstrip().rstrip(',').rstrip() + '}'
+        else:
+            break
+if d is None:
+    try:
+        json.loads(s, strict=False)
+    except Exception as e:
+        sys.stderr.write('GCP_SA_KEY を JSON として読めません: %s（先頭12文字: %r、長さ %d）\n' % (e, s[:12], len(s)))
     sys.exit(1)
 missing = [k for k in ('type', 'project_id', 'private_key', 'client_email', 'token_uri') if k not in d]
 if missing:
