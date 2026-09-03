@@ -27,7 +27,7 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
   **プロジェクト ID は love-coach-sprint0**。名前は別アプリ由来だが、思考の炉（shiko-no-ro）など
   このユーザーの Cloud Run アプリはすべてこのプロジェクトに同居している。別プロジェクトへ出すには別の鍵が要る
 - 手動実行は `bash deploy.sh` の1コマンド（gcloud 導入・認証・バケット作成・権限・デプロイ・配信検証まで自己完結）。
-  既定: service=genzo, region=asia-northeast1, bucket=love-coach-sprint0-genzo, ログイン genzo/genzo（画面は /login）
+  既定: service=genzo, region=asia-northeast1, bucket=love-coach-sprint0-genzo, 入室パスワード genzo（ユーザー名なし。画面は /login）
 - `CLOUDSDK_AUTH_ACCESS_TOKEN` も環境にあるが失効・権限不足で使えないことがある。`deploy.sh` は unset して鍵を優先する
 - **セッションから手動でデプロイする場合は default（手動承認）権限モードで実行する**。auto モードでは認証情報を扱う
   コマンドが承認制になり `bash deploy.sh` が通らない（2026-09-02 に確認）。auto モードのセッションにいる場合は

@@ -5,9 +5,9 @@
 # 一度だけ必要な設定（GitHub → リポジトリ → Settings → Secrets and variables → Actions → New repository secret）:
 #   GCP_SA_KEY … Cloud Run にデプロイするサービスアカウントのキー JSON（love-coach-deployer のもの。
 #                外側の {} が欠けた形でも deploy.sh が補う）
-#   APP_BASIC_AUTH … ログインの "ユーザー名:パスワード"（Secret 推奨。未設定なら deploy.sh の既定 genzo:genzo）
+#   APP_PASSWORD … 入室パスワード（任意。未設定なら deploy.sh の既定 genzo）
 # 任意の variables（Settings → Secrets and variables → Actions → Variables）:
-#   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_BASIC_AUTH / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_IMAGE_MODEL
+#   PROJECT_ID / REGION / SERVICE / GCS_BUCKET / APP_PASSWORD / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_IMAGE_MODEL
 #   （未設定なら deploy.sh の既定値。PROJECT_ID は鍵から自動判定）
 name: deploy
 
@@ -34,7 +34,7 @@ jobs:
           REGION: ${{ vars.REGION }}
           SERVICE: ${{ vars.SERVICE }}
           GCS_BUCKET: ${{ vars.GCS_BUCKET }}
-          APP_BASIC_AUTH: ${{ secrets.APP_BASIC_AUTH || vars.APP_BASIC_AUTH }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD || vars.APP_PASSWORD }}
           VERTEX_LOCATION: ${{ vars.VERTEX_LOCATION }}
           VERTEX_MODEL: ${{ vars.VERTEX_MODEL }}
           VERTEX_IMAGE_MODEL: ${{ vars.VERTEX_IMAGE_MODEL }}

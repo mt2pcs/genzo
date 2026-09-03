@@ -4,7 +4,7 @@ function env(k, d){ var v = process.env[k]; return (v !== undefined && String(v)
 
 var cfg = {
   port: Number(env('PORT', '8080')),
-  basicAuth: env('APP_BASIC_AUTH', ''),          // "user:pass"（任意）
+  password: (function(){ var p = env('APP_PASSWORD', ''); if (p) return p; var b = env('APP_BASIC_AUTH', ''); return b.indexOf(':') > 0 ? b.slice(b.indexOf(':') + 1) : b; })(), // 入室パスワード（任意。未設定なら保護なし）
   sessionSecret: env('APP_SESSION_SECRET', ''),  // ログインCookieの署名鍵（任意。未設定なら資格情報から導出）
 
   storage: env('STORAGE', env('GCS_BUCKET', '') ? 'gcs' : 'local'),

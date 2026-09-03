@@ -1,7 +1,7 @@
 'use strict';
 /* GENZO の Express アプリ本体（index.js が listen する。テストはこのモジュールを直接使う）。
    - GET  /                 : public/index.html（GAS の doGet に相当）
-   - GET  /login, /logout   : ログイン画面（APP_BASIC_AUTH 設定時のみ。server/auth.js）
+   - GET  /login, /logout   : 入室画面（APP_PASSWORD 設定時のみ。パスワード1つ。server/auth.js）
    - POST /api/:fn          : google.script.run の代替。body={args:[...]} → {ok:true,result} / {ok:false,error}
    - GET  /files/:name      : 保存画像の直接配信（任意利用）
    - GET  /api/health       : ヘルスチェック（/healthz は Cloud Run の手前で 404 になるため使わない） */
@@ -11,14 +11,14 @@ var cfg = require('./config');
 var genzo = require('./genzo');
 var storage = require('./storage');
 var llm = require('./llm');
-var auth = require('./auth').create({ basicAuth: cfg.basicAuth, sessionSecret: cfg.sessionSecret });
+var auth = require('./auth').create({ password: cfg.password, sessionSecret: cfg.sessionSecret });
 
 var app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 
 /* /healthz は Cloud Run のフロントエンドに横取りされて 404 になるため /api/health を正とする（/healthz はローカル用の別名） */
-app.get(['/api/health', '/healthz'], function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV, auth: auth.enabled ? 'login' : 'none' }); });
+app.get(['/api/health', '/healthz'], function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV, auth: auth.enabled ? 'password' : 'none' }); });
 
 auth.routes(app, express);
 app.use(auth.middleware);

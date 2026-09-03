@@ -11,7 +11,7 @@
 #   bash deploy.sh
 #   PROJECT_ID=xxx GCS_BUCKET=yyy REGION=asia-northeast1 SERVICE=genzo bash deploy.sh
 # 任意: VERTEX_LOCATION(既定 global) VERTEX_MODEL VERTEX_IMAGE_MODEL VERTEX_IMAGE_LOCATION
-#       APP_BASIC_AUTH("user:pass"、既定 genzo:genzo) ALLOW_UNAUTH(既定 1 = Cloud Run は公開・Basic認証で保護)
+#       APP_PASSWORD(入室パスワード、既定 genzo) ALLOW_UNAUTH(既定 1 = Cloud Run は公開・パスワードで保護)
 #       RUNTIME_SA(実行サービスアカウント。未指定なら作成を試み、権限がなければ既定のコンピュート SA を使う)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -99,7 +99,7 @@ VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
 VERTEX_MODEL="${VERTEX_MODEL:-gemini-2.5-pro}"
 VERTEX_IMAGE_MODEL="${VERTEX_IMAGE_MODEL:-gemini-2.5-flash-image}"
 VERTEX_IMAGE_LOCATION="${VERTEX_IMAGE_LOCATION:-us-central1}"
-APP_BASIC_AUTH="${APP_BASIC_AUTH:-genzo:genzo}"
+APP_PASSWORD="${APP_PASSWORD:-genzo}"
 ALLOW_UNAUTH="${ALLOW_UNAUTH:-1}"
 echo "   account=${ACCOUNT} project=${PROJECT_ID} region=${REGION} service=${SERVICE} bucket=gs://${GCS_BUCKET}"
 
@@ -142,7 +142,7 @@ fi
 
 echo "== 2/4 Cloud Run デプロイ (project=${PROJECT_ID}, service=${SERVICE}, region=${REGION}) =="
 ENV_VARS="STORAGE=gcs,GCS_BUCKET=${GCS_BUCKET},GCS_PREFIX=genzo/,LLM_PROVIDER=vertex,VERTEX_PROJECT=${PROJECT_ID},VERTEX_LOCATION=${VERTEX_LOCATION},VERTEX_MODEL=${VERTEX_MODEL},VERTEX_IMAGE_MODEL=${VERTEX_IMAGE_MODEL},VERTEX_IMAGE_LOCATION=${VERTEX_IMAGE_LOCATION}"
-if [ -n "$APP_BASIC_AUTH" ]; then ENV_VARS="${ENV_VARS},APP_BASIC_AUTH=${APP_BASIC_AUTH}"; fi
+if [ -n "$APP_PASSWORD" ]; then ENV_VARS="${ENV_VARS},APP_PASSWORD=${APP_PASSWORD}"; fi
 AUTH_FLAG="--no-allow-unauthenticated"
 if [ "$ALLOW_UNAUTH" = "1" ]; then AUTH_FLAG="--allow-unauthenticated"; fi
 
@@ -161,7 +161,7 @@ gcloud run deploy "$SERVICE" \
 echo "== 3/4 配信検証 =="
 LIVE_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
 AUTH_OPT=()
-if [ -n "$APP_BASIC_AUTH" ]; then AUTH_OPT=(-u "$APP_BASIC_AUTH"); fi
+if [ -n "$APP_PASSWORD" ]; then AUTH_OPT=(-u "genzo:${APP_PASSWORD}"); fi
 HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/api/health" || true)"
 echo "   /api/health: ${HEALTH:-(応答なし)}"
 case "$HEALTH" in
@@ -173,4 +173,4 @@ case "$PROJ_OK" in
   *'"ok":true'*) echo "   /api/getProject: ok（プロジェクトJSONを gs://${GCS_BUCKET} に初期化済み）" ;;
   *) echo "配信検証: 不合格 — /api/getProject が失敗: ${PROJ_OK}" >&2; exit 1 ;;
 esac
-echo "== 4/4 完了。${LIVE_URL} を開く（Basic 認証 ${APP_BASIC_AUTH%%:*}/****） =="
+echo "== 4/4 完了。${LIVE_URL} を開く（入室パスワードは APP_PASSWORD） =="

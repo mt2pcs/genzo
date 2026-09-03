@@ -8,7 +8,7 @@ const path = require('path');
 
 process.env.STORAGE = 'local';
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'genzo-auth-'));
-process.env.APP_BASIC_AUTH = 'genzo:secret';
+process.env.APP_PASSWORD = 'secret';
 
 const app = require('../server/app');
 let server, base;
@@ -27,22 +27,23 @@ test('未ログインの画面アクセスは /login へ、/api は 401 JSON、/
   assert.equal(j.ok, false); assert.equal(j.login, '/login');
   const h = await fetch(base + '/api/health');
   assert.equal(h.status, 200);
-  assert.equal((await h.json()).auth, 'login');
+  assert.equal((await h.json()).auth, 'password');
 });
 
-test('ログイン画面は GENZO のトーンで描画され、誤入力は 401 で同じ画面に戻る', async () => {
+test('入室画面はパスワード欄のみで、誤入力は 401 で同じ画面に戻る', async () => {
   const r = await fetch(base + '/login?next=/foo');
   const html = await r.text();
   assert.ok(html.includes('GEN<i>Z</i>O'));
   assert.ok(html.includes('name="next" value="/foo"'));
   assert.ok(!html.includes('{{'));
-  const bad = await fetch(base + '/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'user=genzo&pass=wrong&next=/foo', ...noRedirect });
+  assert.ok(!html.includes('name="user"'));
+  const bad = await fetch(base + '/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'pass=wrong&next=/foo', ...noRedirect });
   assert.equal(bad.status, 401);
-  assert.ok((await bad.text()).includes('ユーザー名かパスワードが違います'));
+  assert.ok((await bad.text()).includes('パスワードが違います'));
 });
 
 test('正しい資格情報で Cookie が発行され、以後は画面と /api が通る。/logout で失効', async () => {
-  const ok = await fetch(base + '/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'user=genzo&pass=secret&next=/', ...noRedirect });
+  const ok = await fetch(base + '/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'pass=secret&next=/', ...noRedirect });
   assert.equal(ok.status, 303);
   assert.equal(ok.headers.get('location'), '/');
   const cookie = ok.headers.get('set-cookie');
@@ -61,10 +62,10 @@ test('正しい資格情報で Cookie が発行され、以後は画面と /api 
   assert.equal(forged.status, 302);
 });
 
-test('Basic ヘッダ（curl / deploy.sh の配信検証）も引き続き受け付ける', async () => {
-  const h = { Authorization: 'Basic ' + Buffer.from('genzo:secret').toString('base64') };
+test('Basic ヘッダ（curl / deploy.sh の配信検証。ユーザー名は任意）も受け付ける', async () => {
+  const h = { Authorization: 'Basic ' + Buffer.from('anyone:secret').toString('base64') };
   const r = await fetch(base + '/', { headers: h, ...noRedirect });
   assert.equal(r.status, 200);
-  const bad = await fetch(base + '/', { headers: { Authorization: 'Basic ' + Buffer.from('genzo:nope').toString('base64') }, ...noRedirect });
+  const bad = await fetch(base + '/', { headers: { Authorization: 'Basic ' + Buffer.from('anyone:nope').toString('base64') }, ...noRedirect });
   assert.equal(bad.status, 302);
 });

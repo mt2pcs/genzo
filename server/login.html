@@ -51,12 +51,11 @@ button:active{transform:none}
 <main class="card">
   <div class="logo">GEN<i>Z</i>O</div>
   <div class="eyebrow">コンセプトの現像室</div>
-  <p class="lead">共有パスワードで入室します。入室状態は30日間保持されます。</p>
+  <p class="lead">パスワードを入力して入室します。入室状態は30日間保持されます。</p>
   {{ERROR}}
   <form method="post" action="/login" autocomplete="on">
     <input type="hidden" name="next" value="{{NEXT}}">
-    <label>ユーザー名<input name="user" value="{{USER}}" autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus></label>
-    <label>パスワード<input name="pass" type="password" autocomplete="current-password" required></label>
+    <label>パスワード<input name="pass" type="password" autocomplete="current-password" required autofocus></label>
     <button type="submit">入室する</button>
   </form>
   <div class="foot"><span>RIB / サントリー</span><span>Cloud Run</span></div>

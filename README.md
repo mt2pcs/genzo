@@ -73,11 +73,11 @@ PROJECT_ID=<your-project> GCS_BUCKET=<bucket-name> ./deploy.sh
 | `VERTEX_MODEL` | `gemini-2.5-pro` | テキスト・画像理解・JSON 生成・グラウンディングに使うモデル |
 | `VERTEX_IMAGE_MODEL` | `gemini-2.5-flash-image` | 画像生成。`imagen-*` を指定すると `:predict` API（参照画像なし）になる |
 | `VERTEX_IMAGE_LOCATION` | `us-central1` | Imagen を使う場合のリージョン |
-| `APP_BASIC_AUTH` | 空 | `user:pass` を設定すると Basic 認証を要求 |
+| `APP_PASSWORD` | 空 | 設定すると入室画面でこのパスワード1つを要求（ユーザー名なし） |
 
 - **タイムアウト**: 新方向の設計は 2〜6 分、派生は 1〜3 分かかります。Cloud Run の `--timeout` は 3600 にしてください（`deploy.sh` 済み）。
 - **インスタンス数**: プロジェクトは 1 つの JSON を読み書きします。`--max-instances 1` を推奨します（複数インスタンスでも保存時の世代番号照合で競合は検知・再試行されますが、サムネキャッシュ等は共有されません）。
-- **認証**: 既定では未認証アクセスを許可しません。チーム利用は IAP（Identity-Aware Proxy）か `gcloud run services add-iam-policy-binding ... --role roles/run.invoker` で Google アカウントを許可してください。手軽に済ませる場合は `ALLOW_UNAUTH=1 APP_BASIC_AUTH=user:pass ./deploy.sh`。
+- **認証**: 既定では未認証アクセスを許可しません。チーム利用は IAP（Identity-Aware Proxy）か `gcloud run services add-iam-policy-binding ... --role roles/run.invoker` で Google アカウントを許可してください。手軽に済ませる場合は `ALLOW_UNAUTH=1 APP_PASSWORD=xxxx ./deploy.sh`（`deploy.sh` の既定はこちら）。
 - **モデルの変更**: `VERTEX_MODEL` / `VERTEX_IMAGE_MODEL` を差し替えるだけで済みます（`reasoning_effort` は Gemini 2.5 系では thinkingBudget、3 系では thinkingLevel に写像されます）。
 
 ## GAS 版からデータを移す
