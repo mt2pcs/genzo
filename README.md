@@ -15,7 +15,7 @@ Google Apps Script（`code.gs` + `index.html`）で動いていた GENZO v3 を�
 ## 構成
 
 ```
-server/index.js    HTTP サーバ（静的配信・/api ディスパッチ・/files・/healthz・任意の Basic 認証）
+server/index.js    起動点（本体は server/app.js: 静的配信・/api ディスパッチ・/files・/api/health・ログイン画面）
 server/genzo.js    アプリ本体（code.gs の移植。シード・パイプライン・判定ロジックはそのまま）
 server/llm.js      Vertex AI / OpenAI 互換 の呼び出し層
 server/storage.js  Cloud Storage / ローカル FS

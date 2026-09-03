@@ -67,7 +67,7 @@ function create(opts){
   }
 
   function middleware(req, res, next){
-    if (req.path === '/healthz' || req.path === '/login' || req.path === '/logout') return next();
+    if (req.path === '/healthz' || req.path === '/api/health' || req.path === '/login' || req.path === '/logout') return next();
     if (basicOk(req) || verify(cookieOf(req))) return next();
     if (req.path.indexOf('/api/') === 0){
       res.status(401).json({ ok: false, error: 'ログインが必要です', login: '/login' });

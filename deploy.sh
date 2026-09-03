@@ -162,11 +162,11 @@ echo "== 3/4 配信検証 =="
 LIVE_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
 AUTH_OPT=()
 if [ -n "$APP_BASIC_AUTH" ]; then AUTH_OPT=(-u "$APP_BASIC_AUTH"); fi
-HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/healthz" || true)"
-echo "   /healthz: ${HEALTH:-(応答なし)}"
+HEALTH="$(curl -sf "${AUTH_OPT[@]}" "${LIVE_URL}/api/health" || true)"
+echo "   /api/health: ${HEALTH:-(応答なし)}"
 case "$HEALTH" in
   *'"ok":true'*) ;;
-  *) echo "配信検証: 不合格 — /healthz が ok を返さない" >&2; exit 1 ;;
+  *) echo "配信検証: 不合格 — /api/health が ok を返さない" >&2; exit 1 ;;
 esac
 PROJ_OK="$(curl -sf "${AUTH_OPT[@]}" -X POST -H 'Content-Type: application/json' -d '{"args":[]}' "${LIVE_URL}/api/getProject" | head -c 200 || true)"
 case "$PROJ_OK" in

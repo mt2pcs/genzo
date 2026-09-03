@@ -17,7 +17,7 @@ test.after(() => server.close());
 
 const noRedirect = { redirect: 'manual' };
 
-test('未ログインの画面アクセスは /login へ、/api は 401 JSON、/healthz は素通し', async () => {
+test('未ログインの画面アクセスは /login へ、/api は 401 JSON、/api/health は素通し', async () => {
   const r = await fetch(base + '/', noRedirect);
   assert.equal(r.status, 302);
   assert.ok(r.headers.get('location').startsWith('/login?next=%2F'));
@@ -25,7 +25,7 @@ test('未ログインの画面アクセスは /login へ、/api は 401 JSON、/
   assert.equal(a.status, 401);
   const j = await a.json();
   assert.equal(j.ok, false); assert.equal(j.login, '/login');
-  const h = await fetch(base + '/healthz');
+  const h = await fetch(base + '/api/health');
   assert.equal(h.status, 200);
   assert.equal((await h.json()).auth, 'login');
 });

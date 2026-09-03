@@ -580,7 +580,7 @@ var App={
         +'<b style="color:var(--danger)">バックエンドが旧版のデータを返しています（v3のシードが届いていません）。</b><br><br>'
         +'確認手順:<br>'
         +'1. Cloud Run のリビジョンが最新のイメージ（server/genzo.js と public/index.html を同時に含むもの）か確認<br>'
-        +'2. <span class="mono">/healthz</span> を開き、<span class="mono">seedRev</span> がこの画面の UI_REV と一致するか確認<br>'
+        +'2. <span class="mono">/api/health</span> を開き、<span class="mono">seedRev</span> がこの画面の UI_REV と一致するか確認<br>'
         +'3. Cloud Run のログで <span class="mono">getProject</span> のエラー（保存先バケットの権限・Vertex AI の権限）を確認<br>'
         +'4. 保存先バケットの <span class="mono">genzo_project.json</span> を削除（または退避）してから再読込</div>';
       return;

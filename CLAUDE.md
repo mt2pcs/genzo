@@ -34,7 +34,8 @@ GAS 版 GENZO（ビジュアル意思決定ワークスペース）を Cloud Run
   `create_session`（Claude Code Remote MCP）で `permission_mode: "default"` の子セッションを起こして
   `bash deploy.sh` を指示し、ユーザーが Web UI で承認する（daward の「É MOOMENTS デプロイ最終実行」
   2026-08-25 がこの方式で成功）。同じことを繰り返し試して分類器を突破しようとしない
-- 配信検証は `deploy.sh` の 3/4 が行う（/healthz と /api/getProject）。URL は完了時に表示される
+- 配信検証は `deploy.sh` の 3/4 が行う（/api/health と /api/getProject）。URL は完了時に表示される。
+  `/healthz` は Cloud Run のフロントエンドに横取りされて 404 になる（2026-09-03 に確認）ので使わない
 
 ## 開発
 

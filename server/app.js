@@ -4,7 +4,7 @@
    - GET  /login, /logout   : ログイン画面（APP_BASIC_AUTH 設定時のみ。server/auth.js）
    - POST /api/:fn          : google.script.run の代替。body={args:[...]} → {ok:true,result} / {ok:false,error}
    - GET  /files/:name      : 保存画像の直接配信（任意利用）
-   - GET  /healthz          : ヘルスチェック */
+   - GET  /api/health       : ヘルスチェック（/healthz は Cloud Run の手前で 404 になるため使わない） */
 var path = require('path');
 var express = require('express');
 var cfg = require('./config');
@@ -17,7 +17,8 @@ var app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 
-app.get('/healthz', function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV, auth: auth.enabled ? 'login' : 'none' }); });
+/* /healthz は Cloud Run のフロントエンドに横取りされて 404 になるため /api/health を正とする（/healthz はローカル用の別名） */
+app.get(['/api/health', '/healthz'], function(req, res){ res.json({ ok: true, storage: storage.get().describe(), llm: llm.describe(), seedRev: genzo.SEED_REV, auth: auth.enabled ? 'login' : 'none' }); });
 
 auth.routes(app, express);
 app.use(auth.middleware);
